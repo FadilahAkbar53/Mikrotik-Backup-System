@@ -1,0 +1,342 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-start align-items-md-center mb-4 flex-column flex-md-row gap-3">
+    <div>
+        <h3 class="fw-bold mb-1 text-dark">Dashboard Router</h3>
+        <p class="text-muted small mb-0">Selamat datang, <strong><%= currentUser.name %></strong>! Pantau kondisi backup dan berkas router MikroTik Anda.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a href="/routers" class="btn btn-outline-secondary btn-sm rounded-2 d-inline-flex align-items-center gap-1.5 shadow-sm px-3">
+            <i class="bi bi-router"></i>
+            <span>Daftar Router</span>
+        </a>
+        <a href="/routers/create" class="btn btn-primary btn-sm rounded-2 d-inline-flex align-items-center gap-1.5 shadow-sm px-3">
+            <i class="bi bi-plus-lg"></i>
+            <span>Tambah Router</span>
+        </a>
+    </div>
+</div>
+
+<!-- Metrics Summary (Clean & Minimalist - matching Retensi & Storage) -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Router Anda</div>
+            <h4 class="fw-bold text-dark mb-0"><%= totalRouters %> <span class="fs-6 fw-normal text-muted">unit</span></h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Router Sehat (&lt; 24 Jam)</div>
+            <h4 class="fw-bold text-dark mb-0"><%= healthyCount %> <span class="fs-6 fw-normal text-muted">/ <%= totalRouters %> normal</span></h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Perlu Perhatian (&gt; 24 Jam)</div>
+            <h4 class="fw-bold <%= failedCount > 0 ? 'text-danger' : 'text-dark' %> mb-0">
+                <%= failedCount %> <span class="fs-6 fw-normal <%= failedCount > 0 ? 'text-danger' : 'text-muted' %>"><%= failedCount > 0 ? 'terlambat' : 'aman' %></span>
+            </h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Storage Backup</div>
+            <h4 class="fw-bold text-dark mb-0"><%= totalSizeFormatted %> <span class="fs-6 fw-normal text-muted">/ <%= totalBackups %> berkas</span></h4>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section: 7-Day Trend & Composition -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-graph-up-arrow text-primary"></i>
+                    <h5 class="fw-bold mb-0 text-dark">Tren Aktivitas Backup Anda</h5>
+                </div>
+                <span class="badge bg-light text-muted border small">Rentang 7 Hari Terakhir</span>
+            </div>
+            <div class="card-body p-4">
+                <div style="height: 240px; position: relative;">
+                    <canvas id="userBackupTrendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    <h5 class="fw-bold mb-0 text-dark">Distribusi Berkas</h5>
+                </div>
+                <span class="badge bg-light text-muted border small"><%= totalBackups %> Berkas</span>
+            </div>
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div style="height: 165px; position: relative;">
+                    <canvas id="userStorageCompChart"></canvas>
+                </div>
+                <div class="pt-3 border-top border-light mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <span class="rounded-circle d-inline-block" style="width: 10px; height: 10px; background-color: #0284c7;"></span>
+                            <span class="fw-semibold text-dark">Script (.rsc)</span>
+                        </div>
+                        <span class="small font-monospace text-muted"><%= chartData.rscCount %> berkas (<%= chartData.rscFormatted %>)</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <span class="rounded-circle d-inline-block" style="width: 10px; height: 10px; background-color: #64748b;"></span>
+                            <span class="fw-semibold text-dark">Binary (.backup)</span>
+                        </div>
+                        <span class="small font-monospace text-muted"><%= chartData.binaryCount %> berkas (<%= chartData.binaryFormatted %>)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tables Row -->
+<div class="row g-4">
+    <!-- Router List -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-router text-primary"></i>
+                    <h5 class="fw-bold mb-0 text-dark">Daftar Router Anda</h5>
+                </div>
+                <a href="/routers" class="small text-decoration-none">Kelola Semua &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4 py-2.5">Nama Router</th>
+                            <th class="py-2.5 text-center">Status</th>
+                            <th class="py-2.5">Backup Terakhir</th>
+                            <th class="text-end pe-4 py-2.5">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (routers.length > 0) { %>
+                            <% routers.forEach(function(r) { %>
+                                <tr>
+                                    <td class="ps-4 py-2.5">
+                                        <a href="/routers/<%= r.id %>" class="fw-bold text-dark text-decoration-none">
+                                            <%= r.name %>
+                                        </a>
+                                        <div class="text-muted small" style="font-size: 0.72rem;">
+                                            <%= r.backups_count %> berkas tersimpan
+                                        </div>
+                                    </td>
+                                    <td class="text-center py-2.5">
+                                        <% if (r.is_healthy) { %>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">Sehat</span>
+                                        <% } else { %>
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">Perlu Cek</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="py-2.5 text-muted small">
+                                        <%= diffForHumans(r.last_backup_time) %>
+                                    </td>
+                                    <td class="text-end pe-4 py-2.5">
+                                        <a href="/routers/<%= r.id %>" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-2">
+                                            Buka <i class="bi bi-arrow-right"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted small">
+                                    Belum ada router yang ditambahkan.
+                                    <div class="mt-2">
+                                        <a href="/routers/create" class="btn btn-sm btn-primary">Tambah Router Sekarang</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Backups -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-primary"></i>
+                    <h5 class="fw-bold mb-0 text-dark">Backup Terbaru</h5>
+                </div>
+                <span class="badge bg-light text-muted border small">
+                    <%= recentBackups.length %> Berkas
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4 py-2.5">Router</th>
+                            <th class="py-2.5">Waktu</th>
+                            <th class="text-end pe-4 py-2.5">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (recentBackups.length > 0) { %>
+                            <% recentBackups.forEach(function(b) { %>
+                                <tr>
+                                    <td class="ps-4 py-2.5">
+                                        <strong class="text-dark"><%= b.router_name %></strong>
+                                        <div class="text-muted small" style="font-size: 0.72rem;">
+                                            <span class="badge <%= b.file_type === 'rsc' ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle' %> text-uppercase fw-semibold py-0 px-1" style="font-size: 0.65rem;">.<%= b.file_type %></span>
+                                            <%= formatBytes(b.file_size) %>
+                                        </div>
+                                    </td>
+                                    <td class="py-2.5 text-muted small">
+                                        <%= diffForHumans(b.created_at) %>
+                                    </td>
+                                    <td class="text-end pe-4 py-2.5">
+                                        <div class="d-flex align-items-center justify-content-end gap-1">
+                                            <% if (b.file_type === 'rsc') { %>
+                                                <a href="/backup/preview/<%= b.id %>" class="btn btn-sm btn-info text-white rounded-2 py-0.5 px-2 shadow-sm" onclick="openRscPreview(<%= b.id %>); return false;" title="Lihat Script">
+                                                    <i class="bi bi-file-earmark-code"></i>
+                                                </a>
+                                            <% } %>
+                                            <a href="/backup/download/<%= b.id %>" class="btn btn-sm btn-light border text-success rounded-2 py-0.5 px-2" title="Unduh">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="3" class="text-center py-5 text-muted small">
+                                    Belum ada berkas backup yang masuk.
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Scripts Initialization for Tenant -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartData = <%- JSON.stringify(chartData) %>;
+
+    // 1. Line Chart: 7-Day Backup Trends
+    const trendsCtx = document.getElementById('userBackupTrendsChart');
+    if (trendsCtx && typeof Chart !== 'undefined') {
+        const ctx = trendsCtx.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+        gradient.addColorStop(0, 'rgba(2, 132, 199, 0.22)');
+        gradient.addColorStop(1, 'rgba(2, 132, 199, 0.01)');
+
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: chartData.trendLabels || [],
+                datasets: [{
+                    label: 'Jumlah Berkas Backup',
+                    data: chartData.trendCounts || [],
+                    borderColor: '#0284c7',
+                    borderWidth: 2.5,
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.35,
+                    pointBackgroundColor: '#0284c7',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleFont: { size: 12, weight: '600' },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const index = context.dataIndex;
+                                const count = context.parsed.y;
+                                const size = chartData.trendSizes[index] || 0;
+                                return ` ${count} Berkas (${size} KB)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: { color: '#64748b', font: { size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, color: '#64748b', font: { size: 11 } },
+                        grid: { color: '#f1f5f9', drawBorder: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Doughnut Chart: Storage & File Composition
+    const compCtx = document.getElementById('userStorageCompChart');
+    if (compCtx && typeof Chart !== 'undefined') {
+        const totalFiles = (chartData.rscCount || 0) + (chartData.binaryCount || 0);
+        const dataValues = totalFiles > 0 
+            ? [chartData.rscCount || 0, chartData.binaryCount || 0]
+            : [1];
+        const bgColors = totalFiles > 0 
+            ? ['#0284c7', '#64748b']
+            : ['#e2e8f0'];
+
+        new Chart(compCtx, {
+            type: 'doughnut',
+            data: {
+                labels: totalFiles > 0 ? ['Script (.rsc)', 'Binary (.backup)'] : ['Belum Ada Berkas'],
+                datasets: [{
+                    data: dataValues,
+                    backgroundColor: bgColors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: totalFiles > 0,
+                        backgroundColor: '#0f172a',
+                        titleFont: { size: 12, weight: '600' },
+                        bodyFont: { size: 12 },
+                        padding: 10,
+                        cornerRadius: 8
+                    }
+                }
+            }
+        });
+    }
+});
+</script>

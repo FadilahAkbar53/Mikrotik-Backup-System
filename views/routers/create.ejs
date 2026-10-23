@@ -1,0 +1,28 @@
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h4 class="fw-bold mb-0">Tambah Router Baru</h4>
+            <a href="/routers" class="btn btn-outline-secondary btn-sm rounded-2">
+                <i class="bi bi-arrow-left me-1"></i> Kembali
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form action="/routers" method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label fw-bold small text-dark">Nama / Identitas Router</label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Misal: CCR1036-Core-Pusat atau RB750Gr3-Cabang" required autofocus>
+                        <div class="form-text small text-muted">Gunakan nama yang jelas untuk memudahkan identifikasi perangkat MikroTik Anda.</div>
+                    </div>
+
+                    <div class="d-grid gap-2 pt-2">
+                        <button type="submit" class="btn btn-primary fw-semibold py-2 rounded-2">
+                            <i class="bi bi-plus-circle me-1"></i> Simpan & Generate Script
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

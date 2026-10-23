@@ -1,0 +1,140 @@
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold mb-0">Daftar Router MikroTik</h3>
+        <p class="text-muted small mb-0">
+            <%= currentUser.role === 'admin' ? 'Semua router yang terdaftar di sistem' : 'Semua router milik akun Anda' %>
+        </p>
+    </div>
+    <a href="/routers/create" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm">
+        <i class="bi bi-plus-circle-fill"></i>
+        <span>Tambah Router Baru</span>
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-router text-primary me-2"></i>Data Router</h5>
+        <span class="badge bg-secondary"><%= totalItems %> Total Perangkat</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light text-muted small text-uppercase">
+                <tr>
+                    <th scope="col" class="ps-3">Nama Router</th>
+                    <% if (currentUser.role === 'admin') { %>
+                        <th scope="col">Pemilik (Tenant)</th>
+                    <% } %>
+                    <th scope="col">Status Backup</th>
+                    <th scope="col">Waktu Terakhir Sukses</th>
+                    <th scope="col">Total File</th>
+                    <th scope="col" class="text-end pe-3">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (routers.length > 0) { %>
+                    <% routers.forEach(function(router) { %>
+                        <tr>
+                            <td class="ps-3">
+                                <a href="/routers/<%= router.id %>" class="fw-bold text-decoration-none text-dark d-flex align-items-center gap-2">
+                                    <span class="badge bg-light text-dark border p-2"><i class="bi bi-router"></i></span>
+                                    <div>
+                                        <span><%= router.name %></span>
+                                        <div class="small text-muted font-monospace" style="font-size: 0.75rem;">
+                                            Token: <%= router.api_token ? router.api_token.substring(0, 8) + '...' + router.api_token.substring(router.api_token.length - 4) : '—' %>
+                                        </div>
+                                    </div>
+                                </a>
+                            </td>
+                            <% if (currentUser.role === 'admin') { %>
+                                <td>
+                                    <strong><%= router.owner_name || 'User Terhapus' %></strong>
+                                    <div class="small text-muted"><%= router.owner_email || '' %></div>
+                                </td>
+                            <% } %>
+                            <td>
+                                <% if (router.last_backup_time) { %>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Success
+                                    </span>
+                                <% } else { %>
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2.5 py-1">
+                                        <i class="bi bi-clock-history me-1"></i> Belum Pernah
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td>
+                                <% if (router.last_backup_time) { %>
+                                    <div><%= formatDate(router.last_backup_time) %> WIB</div>
+                                    <small class="text-muted"><%= diffForHumans(router.last_backup_time) %></small>
+                                <% } else { %>
+                                    <span class="text-muted fst-italic">Belum ada file</span>
+                                <% } %>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    <i class="bi bi-files me-1"></i> <%= router.backups_count %>
+                                </span>
+                            </td>
+                            <td class="text-end pe-3">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/routers/<%= router.id %>" class="btn btn-outline-primary" title="Detail & Script">
+                                        <i class="bi bi-code-slash me-1"></i> Detail & Script
+                                    </a>
+                                    <a href="/routers/<%= router.id %>/edit" class="btn btn-outline-secondary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal<%= router.id %>" title="Hapus">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Delete Modal -->
+                                <div class="modal fade" id="deleteModal<%= router.id %>" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered text-start">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title fw-bold">Konfirmasi Hapus</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Apakah Anda yakin ingin menghapus router <strong><%= router.name %></strong>?</p>
+                                                <p class="text-danger small mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> Semua berkas backup fisik dan catatan yang berkaitan akan dihapus secara permanen dari server.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                                <form action="/routers/<%= router.id %>?_method=DELETE" method="POST" class="d-inline">
+                                                    <button type="submit" class="btn btn-sm btn-danger">Hapus Permanen</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="<%= currentUser.role === 'admin' ? 6 : 5 %>" class="text-center py-5 text-muted">
+                            <i class="bi bi-router fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                            <p class="mb-2">Belum ada router yang terdaftar.</p>
+                            <a href="/routers/create" class="btn btn-sm btn-primary">Tambah Router Sekarang</a>
+                        </td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+
+    <% if (totalPages > 1) { %>
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+            <small class="text-muted">Halaman <%= currentPage %> dari <%= totalPages %></small>
+            <ul class="pagination pagination-sm mb-0">
+                <% for (let p = 1; p <= totalPages; p++) { %>
+                    <li class="page-item <%= p === currentPage ? 'active' : '' %>">
+                        <a class="page-link" href="/routers?page=<%= p %>"><%= p %></a>
+                    </li>
+                <% } %>
+            </ul>
+        </div>
+    <% } %>
+</div>

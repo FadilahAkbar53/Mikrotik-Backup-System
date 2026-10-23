@@ -1,0 +1,225 @@
+<div class="card shadow-lg border-0 rounded-4 overflow-hidden bg-dark text-white mb-4">
+    <!-- Header -->
+    <div class="card-header border-bottom border-secondary border-opacity-25 py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-3" style="background-color: #0b1120;">
+        <div class="d-flex align-items-center gap-3">
+            <a href="/routers/<%= backup.router_id %>?tab=backups" class="btn btn-outline-secondary btn-sm p-2 rounded-2" title="Kembali ke Riwayat Router">
+                <i class="bi bi-arrow-left text-white"></i>
+            </a>
+            <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h5 class="font-monospace fw-bold text-white mb-0"><%= filename %></h5>
+                    <span class="badge bg-info text-dark text-uppercase fw-bold" style="font-size: 0.7rem;">MikroTik Script (.rsc)</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-2 flex-wrap" style="font-size: 0.8rem;">
+                    <div class="badge bg-secondary-subtle text-white border border-secondary px-2 py-1">
+                        <i class="bi bi-hdd-network text-info me-1"></i> Router: <strong><%= backup.router_name %></strong>
+                    </div>
+                    <div class="badge bg-secondary-subtle text-white border border-secondary px-2 py-1">
+                        <i class="bi bi-file-binary text-warning me-1"></i> Ukuran: <strong><%= fileSizeFormatted %></strong>
+                    </div>
+                    <div class="badge bg-secondary-subtle text-white border border-secondary px-2 py-1">
+                        <i class="bi bi-calendar3 text-success me-1"></i> <%= formatDate(backup.created_at) %> WIB
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-light fw-bold text-dark rounded-2 shadow-sm px-3" onclick="copyEntireScript()" id="copyScriptBtn">
+                <i class="bi bi-clipboard me-1"></i> <span id="copyBtnText">Salin Script</span>
+            </button>
+            <a href="/backup/download/<%= backup.id %>" class="btn btn-sm btn-primary fw-bold rounded-2 shadow-sm px-3">
+                <i class="bi bi-download me-1"></i> Unduh File
+            </a>
+        </div>
+    </div>
+
+    <!-- Search & Control Toolbar -->
+    <div class="px-4 py-2.5 border-bottom border-secondary border-opacity-25 d-flex align-items-center justify-content-between flex-wrap gap-2" style="background-color: #0f172a;">
+        <div class="d-flex align-items-center gap-2">
+            <div class="input-group input-group-sm" style="width: 320px;">
+                <span class="input-group-text bg-secondary border-secondary text-info"><i class="bi bi-search"></i></span>
+                <input type="text" id="rscSearchInput" class="form-control bg-dark text-white border-secondary" placeholder="Cari dalam script... (Ctrl+F)" oninput="handleSearch(this.value)" onkeydown="handleSearchKeyDown(event)" autocomplete="off">
+                <span id="searchCountBadge" class="input-group-text bg-dark text-info border-secondary d-none">0/0</span>
+                <button class="btn btn-outline-secondary" type="button" id="prevMatchBtn" onclick="navigateMatch(-1)" disabled><i class="bi bi-chevron-up"></i></button>
+                <button class="btn btn-outline-secondary" type="button" id="nextMatchBtn" onclick="navigateMatch(1)" disabled><i class="bi bi-chevron-down"></i></button>
+                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary text-white" onclick="toggleWordWrap()" id="wrapToggleBtn">
+                <i class="bi bi-text-wrap text-warning me-1"></i> Wrap
+            </button>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary text-white" onclick="adjustFontSize(-1)"><i class="bi bi-dash"></i> A</button>
+                <button type="button" class="btn btn-outline-secondary text-white" onclick="adjustFontSize(1)"><i class="bi bi-plus"></i> A</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Content with Line Numbers -->
+    <div class="position-relative" style="background-color: #0b1120; max-height: 75vh; overflow-y: auto;" id="scriptScrollContainer">
+        <pre class="m-0 p-3 font-monospace d-flex text-start" id="codePre" style="font-size: 0.88rem; line-height: 1.6; tab-size: 4;"><div class="pe-3 me-3 text-secondary text-end user-select-none border-end border-secondary border-opacity-25 font-monospace" id="linesColumn" style="opacity: 0.6; min-width: 48px;"></div><code class="grow text-white" id="codeContent" style="white-space: pre; outline: none;"></code></pre>
+    </div>
+</div>
+
+<textarea id="rawScriptStorage" style="display: none;"><%= content %></textarea>
+
+<style>
+    .match-highlight {
+        background-color: rgba(234, 179, 8, 0.4) !important;
+        color: #fef08a !important;
+        border-radius: 2px;
+        padding: 0 2px;
+    }
+    .match-highlight.active-match {
+        background-color: #f97316 !important;
+        color: #ffffff !important;
+        font-weight: bold;
+        box-shadow: 0 0 0 2px #ea580c;
+    }
+</style>
+
+<script>
+    const rawScript = document.getElementById('rawScriptStorage').value;
+    let matches = [];
+    let currentMatchIndex = -1;
+    let currentFontSize = 14;
+
+    function escapeHtml(text) {
+        return text.replace(/&/g, '&amp;')
+                   .replace(/</g, '&lt;')
+                   .replace(/>/g, '&gt;');
+    }
+
+    function renderCode(highlightQuery = '') {
+        const lines = rawScript.split('\n');
+        const linesCol = document.getElementById('linesColumn');
+        const codeContent = document.getElementById('codeContent');
+
+        // Line numbers
+        linesCol.innerHTML = lines.map((_, i) => `<div>${i + 1}</div>`).join('');
+
+        if (!highlightQuery.trim()) {
+            codeContent.innerHTML = escapeHtml(rawScript);
+            matches = [];
+            currentMatchIndex = -1;
+            updateMatchBadge();
+            return;
+        }
+
+        matches = [];
+        const regex = new RegExp(`(${highlightQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        
+        let matchCounter = 0;
+        const highlightedHtml = escapeHtml(rawScript).replace(regex, (match) => {
+            const id = `match-${matchCounter}`;
+            matches.push(id);
+            matchCounter++;
+            return `<mark class="match-highlight" id="${id}">${match}</mark>`;
+        });
+
+        codeContent.innerHTML = highlightedHtml;
+        if (matches.length > 0) {
+            currentMatchIndex = 0;
+            highlightActiveMatch();
+        } else {
+            currentMatchIndex = -1;
+        }
+        updateMatchBadge();
+    }
+
+    function highlightActiveMatch() {
+        document.querySelectorAll('.match-highlight').forEach(el => el.classList.remove('active-match'));
+        if (currentMatchIndex >= 0 && currentMatchIndex < matches.length) {
+            const activeEl = document.getElementById(matches[currentMatchIndex]);
+            if (activeEl) {
+                activeEl.classList.add('active-match');
+                activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }
+
+    function updateMatchBadge() {
+        const badge = document.getElementById('searchCountBadge');
+        const prevBtn = document.getElementById('prevMatchBtn');
+        const nextBtn = document.getElementById('nextMatchBtn');
+
+        if (matches.length > 0) {
+            badge.classList.remove('d-none');
+            badge.innerText = `${currentMatchIndex + 1}/${matches.length}`;
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+        } else {
+            const input = document.getElementById('rscSearchInput');
+            if (input.value.trim()) {
+                badge.classList.remove('d-none');
+                badge.innerText = '0/0';
+            } else {
+                badge.classList.add('d-none');
+            }
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+        }
+    }
+
+    function handleSearch(val) {
+        renderCode(val);
+    }
+
+    function handleSearchKeyDown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            navigateMatch(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
+            clearSearch();
+        }
+    }
+
+    function navigateMatch(dir) {
+        if (matches.length === 0) return;
+        currentMatchIndex += dir;
+        if (currentMatchIndex >= matches.length) currentMatchIndex = 0;
+        if (currentMatchIndex < 0) currentMatchIndex = matches.length - 1;
+        highlightActiveMatch();
+        updateMatchBadge();
+    }
+
+    function clearSearch() {
+        const input = document.getElementById('rscSearchInput');
+        input.value = '';
+        renderCode('');
+    }
+
+    function toggleWordWrap() {
+        const codeContent = document.getElementById('codeContent');
+        const isWrapped = codeContent.style.whiteSpace === 'pre-wrap';
+        codeContent.style.whiteSpace = isWrapped ? 'pre' : 'pre-wrap';
+    }
+
+    function adjustFontSize(delta) {
+        currentFontSize = Math.max(10, Math.min(24, currentFontSize + delta));
+        document.getElementById('codePre').style.fontSize = `${currentFontSize}px`;
+    }
+
+    function copyEntireScript() {
+        navigator.clipboard.writeText(rawScript).then(() => {
+            const btnText = document.getElementById('copyBtnText');
+            btnText.innerText = 'Tersalin!';
+            setTimeout(() => { btnText.innerText = 'Salin Script'; }, 2000);
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            const input = document.getElementById('rscSearchInput');
+            input.focus();
+            input.select();
+        }
+    });
+
+    // Initial render
+    renderCode('');
+</script>

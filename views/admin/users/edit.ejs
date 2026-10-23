@@ -1,0 +1,45 @@
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h4 class="fw-bold mb-0">Edit Pengguna</h4>
+            <a href="/admin/users" class="btn btn-outline-secondary btn-sm rounded-2">
+                <i class="bi bi-arrow-left me-1"></i> Batal
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form action="/admin/users/<%= targetUser.id %>?_method=PUT" method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label fw-bold small text-dark">Nama Pengguna</label>
+                        <input type="text" class="form-control" id="name" name="name" value="<%= targetUser.name %>" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-bold small text-dark">Alamat Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="<%= targetUser.email %>" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label fw-bold small text-dark">Ganti Kata Sandi (Opsional)</label>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Kosongkan jika tidak ingin mengubah password" minlength="8">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="role" class="form-label fw-bold small text-dark">Hak Akses (Role)</label>
+                        <select name="role" id="role" class="form-select" required>
+                            <option value="user" <%= targetUser.role === 'user' ? 'selected' : '' %>>Tenant / User Biasa</option>
+                            <option value="admin" <%= targetUser.role === 'admin' ? 'selected' : '' %>>Administrator Sistem</option>
+                        </select>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary fw-semibold py-2 rounded-2">
+                            <i class="bi bi-check-lg me-1"></i> Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,123 @@
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+        <a href="/admin/users" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+            <h3 class="fw-bold mb-0"><%= user.name %></h3>
+            <p class="text-muted small mb-0"><%= user.email %> &bull; Bergabung <%= formatDate(user.created_at, 'DD MMM YYYY') %></p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <% if (user.id !== currentUser.id) { %>
+            <form action="/admin/users/<%= user.id %>/impersonate" method="POST">
+                <button type="submit" class="btn btn-warning d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-person-fill-gear"></i> Impersonate Akun Ini
+                </button>
+            </form>
+        <% } %>
+        <a href="/admin/users/<%= user.id %>/edit" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Edit Profil
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- User Overview -->
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0 fw-bold">Informasi Akun</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Role:</span>
+                        <span class="badge <%= user.role === 'admin' ? 'bg-danger' : 'bg-primary' %> text-uppercase">
+                            <%= user.role %>
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Total Router:</span>
+                        <span class="fw-bold"><%= routers.length %> Perangkat</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Terdaftar:</span>
+                        <span><%= formatDate(user.created_at, 'DD MMM YYYY HH:mm') %></span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- User's Routers -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">Daftar Router Milik <%= user.name %></h6>
+                <span class="badge bg-secondary"><%= routers.length %> Router</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-uppercase text-muted">
+                        <tr>
+                            <th class="ps-3">Nama Router</th>
+                            <th>Status Backup</th>
+                            <th>Terakhir Sukses</th>
+                            <th>Total File</th>
+                            <th class="text-end pe-3">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (routers && routers.length > 0) { %>
+                            <% routers.forEach(router => { %>
+                                <tr>
+                                    <td class="ps-3">
+                                        <strong><%= router.name %></strong>
+                                        <div class="small font-monospace text-muted" style="font-size: 0.75rem;">
+                                            Token: <%= router.api_token ? router.api_token.substring(0, 8) + '...' : '-' %>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <% 
+                                            let isHealthy = false;
+                                            if (router.last_backup_time) {
+                                                const diff = Date.now() - new Date(router.last_backup_time).getTime();
+                                                isHealthy = diff < 24 * 60 * 60 * 1000;
+                                            }
+                                        %>
+                                        <span class="badge <%= isHealthy ? 'bg-success' : 'bg-danger' %>">
+                                            <%= isHealthy ? 'Normal (Online)' : 'Terlambat / Belum Backup' %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <% if (router.last_backup_time) { %>
+                                            <div><%= formatDate(router.last_backup_time, 'DD MMM YYYY, HH:mm') %></div>
+                                            <small class="text-muted"><%= diffForHumans(router.last_backup_time) %></small>
+                                        <% } else { %>
+                                            <span class="text-muted fst-italic">Belum pernah</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border"><%= router.backups_count || 0 %> file</span>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <a href="/routers/<%= router.id %>" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> Detail
+                                        </a>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    Pengguna ini belum menambahkan router MikroTik.
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

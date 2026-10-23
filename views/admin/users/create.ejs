@@ -1,0 +1,45 @@
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h4 class="fw-bold mb-0">Tambah Pengguna Baru</h4>
+            <a href="/admin/users" class="btn btn-outline-secondary btn-sm rounded-2">
+                <i class="bi bi-arrow-left me-1"></i> Kembali
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form action="/admin/users" method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label fw-bold small text-dark">Nama Pengguna</label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Nama lengkap" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-bold small text-dark">Alamat Email</label>
+                        <input type="email" class="form-control" id="email" name="email" placeholder="email@perusahaan.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label fw-bold small text-dark">Kata Sandi (Min. 8 Karakter)</label>
+                        <input type="password" class="form-control" id="password" name="password" minlength="8" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="role" class="form-label fw-bold small text-dark">Hak Akses (Role)</label>
+                        <select name="role" id="role" class="form-select" required>
+                            <option value="user" selected>Tenant / User Biasa</option>
+                            <option value="admin">Administrator Sistem</option>
+                        </select>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary fw-semibold py-2 rounded-2">
+                            <i class="bi bi-person-plus me-1"></i> Simpan Pengguna
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

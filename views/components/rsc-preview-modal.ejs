@@ -1,0 +1,990 @@
+<!-- RSC Script Preview Modal Component -->
+<div class="modal fade" id="rscPreviewModal" tabindex="-1" aria-labelledby="rscPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable" id="rscModalDialog">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden bg-dark text-white">
+            
+            <!-- Modal Header -->
+            <div class="modal-header border-bottom border-secondary border-opacity-25 py-3 px-4 bg-slate-900" style="background-color: #0b1120;">
+                <div class="d-flex align-items-center gap-3 overflow-hidden me-auto">
+                    <span class="badge bg-info-subtle text-info p-2 rounded-3 shrink-0 d-flex align-items-center justify-content-center shadow-sm" style="width: 44px; height: 44px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                        <i class="bi bi-file-earmark-code-fill fs-4 text-info"></i>
+                    </span>
+                    <div class="text-truncate">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h5 class="modal-title font-monospace fw-bold text-white mb-0 text-truncate" id="rscModalFilename">
+                                script.rsc
+                            </h5>
+                            <span class="badge bg-info text-dark text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 0.05em; padding: 0.35em 0.65em;">
+                                MikroTik Script (.rsc)
+                            </span>
+                        </div>
+                        <!-- High Contrast Metadata Info Pills -->
+                        <div class="d-flex align-items-center gap-2 mt-2 flex-wrap" style="font-size: 0.8rem;">
+                            <div class="rsc-info-pill">
+                                <i class="bi bi-hdd-network text-info"></i>
+                                <span class="rsc-info-label">Router:</span>
+                                <strong id="rscModalRouter" class="rsc-info-value">...</strong>
+                            </div>
+                            <div class="rsc-info-pill" id="rscModalOwnerBadge">
+                                <i class="bi bi-person-fill text-primary"></i>
+                                <span class="rsc-info-label">Pemilik:</span>
+                                <strong id="rscModalOwner" class="rsc-info-value">...</strong>
+                            </div>
+                            <div class="rsc-info-pill">
+                                <i class="bi bi-file-binary text-warning"></i>
+                                <span class="rsc-info-label">Ukuran:</span>
+                                <strong id="rscModalSize" class="rsc-info-value font-monospace">...</strong>
+                            </div>
+                            <div class="rsc-info-pill">
+                                <i class="bi bi-calendar3 text-success"></i>
+                                <span class="rsc-info-label">Tanggal:</span>
+                                <strong id="rscModalDate" class="rsc-info-value">...</strong>
+                            </div>
+                            <div class="rsc-info-pill">
+                                <i class="bi bi-list-ol text-info"></i>
+                                <span class="rsc-info-label">Total:</span>
+                                <strong id="rscModalLines" class="rsc-info-value text-info font-monospace">...</strong>
+                                <span class="rsc-info-label">baris</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 ms-2">
+                    <button type="button" class="btn btn-sm rsc-btn-tool p-1.5 rounded-2" id="rscToggleFullscreenBtn" onclick="toggleRscFullscreen()" title="Layar Penuh (Toggle Fullscreen)">
+                        <i class="bi bi-arrows-fullscreen fs-6"></i>
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- Toolbar Controls -->
+            <div class="px-4 py-2.5 border-bottom border-secondary border-opacity-25 d-flex align-items-center justify-content-between flex-wrap gap-2" style="background-color: #0f172a;">
+                <!-- Left: Search Box (Clear, High-Contrast & Interactive Navigation) -->
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group input-group-sm rsc-search-box" style="width: 320px;">
+                        <span class="input-group-text rsc-search-icon">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="rscSearchInput" class="form-control form-control-sm rsc-search-input" 
+                               placeholder="Cari dalam script... (Ctrl+F)" 
+                               oninput="handleRscSearch(this.value)" 
+                               onkeydown="handleRscSearchKeyDown(event)"
+                               autocomplete="off" spellcheck="false">
+                        <span id="rscSearchCount" class="input-group-text rsc-search-count d-none">
+                            0/0
+                        </span>
+                        <button class="btn btn-sm rsc-search-btn" type="button" id="rscSearchPrevBtn" onclick="rscPrevMatch()" title="Sebelumnya (Shift+Enter)" disabled>
+                            <i class="bi bi-chevron-up"></i>
+                        </button>
+                        <button class="btn btn-sm rsc-search-btn" type="button" id="rscSearchNextBtn" onclick="rscNextMatch()" title="Berikutnya (Enter)" disabled>
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <button class="btn btn-sm rsc-search-btn" type="button" id="rscSearchClearBtn" onclick="clearRscSearch()" title="Bersihkan pencarian (Esc)">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Viewing Options & Actions -->
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <!-- Mode Toggle: Highlight vs Raw Text -->
+                    <button type="button" class="btn btn-sm rsc-btn-tool rounded-2 d-inline-flex align-items-center gap-1.5" id="rscModeToggleBtn" onclick="toggleRscViewMode()" title="Beralih antara mode Syntax Highlighting dan Mode Teks Murni">
+                        <i class="bi bi-palette text-info" id="rscModeIcon"></i> <span id="rscModeText">Mode Teks Murni</span>
+                    </button>
+
+                    <!-- Wrap Lines -->
+                    <button type="button" class="btn btn-sm rsc-btn-tool rounded-2 d-inline-flex align-items-center gap-1.5" id="rscWrapBtn" onclick="toggleRscWordWrap()" title="Bungkus teks panjang (Word Wrap)">
+                        <i class="bi bi-text-wrap text-warning"></i> <span class="d-none d-sm-inline">Wrap</span>
+                    </button>
+
+                    <!-- Font Sizing -->
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Font sizing">
+                        <button type="button" class="btn rsc-btn-tool" onclick="adjustRscFontSize(-1)" title="Perkecil Font">
+                            <i class="bi bi-dash"></i> A
+                        </button>
+                        <button type="button" class="btn rsc-btn-tool" onclick="adjustRscFontSize(1)" title="Perbesar Font">
+                            <i class="bi bi-plus"></i> A
+                        </button>
+                    </div>
+
+                    <!-- Copy All (Pristine original content) -->
+                    <button type="button" class="btn btn-sm btn-light fw-bold text-dark rounded-2 d-inline-flex align-items-center gap-1.5 shadow-sm px-3" id="rscCopyBtn" onclick="copyRscContent()" title="Salin seluruh isi script murni (100% siap import ke MikroTik)">
+                        <i class="bi bi-clipboard" id="rscCopyIcon"></i> <span id="rscCopyText">Salin Script</span>
+                    </button>
+
+                    <!-- Download File -->
+                    <a href="#" id="rscDownloadBtn" class="btn btn-sm btn-primary fw-bold rounded-2 d-inline-flex align-items-center gap-1.5 shadow-sm px-3" title="Unduh berkas .rsc">
+                        <i class="bi bi-download"></i> <span class="d-none d-sm-inline">Unduh File</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Optional Large File Banner -->
+            <div id="rscTruncatedBanner" class="d-none alert alert-info py-2 px-4 m-0 border-0 rounded-0 small d-flex align-items-center justify-content-between" style="background-color: #0c4a6e; color: #bae6fd;">
+                <div>
+                    <i class="bi bi-info-circle-fill me-1 text-info"></i>
+                    Menampilkan <span id="rscDisplayedLinesCount">2.500</span> baris pertama untuk performa cepat (Total: <span id="rscTotalLinesBanner">0</span> baris).
+                    Tombol <strong>"Salin Script"</strong> & <strong>"Unduh File"</strong> tetap menyalin/mengunduh 100% seluruh script lengkap.
+                </div>
+                <button type="button" class="btn btn-xs btn-outline-light py-0.5 px-2 ms-2 rounded-2" onclick="loadAllRscLines()">
+                    Muat Seluruh Baris
+                </button>
+            </div>
+
+            <!-- Modal Body (Code View) -->
+            <div class="modal-body p-0 position-relative" style="background-color: #0b1120; min-height: 480px; max-height: 70vh; overflow-y: auto;" id="rscCodeContainer">
+                
+                <!-- Loading State -->
+                <div id="rscLoadingState" class="d-flex flex-column align-items-center justify-content-center p-5 text-center text-muted" style="min-height: 420px;">
+                    <div class="spinner-border text-info mb-3" role="status" style="width: 2.8rem; height: 2.8rem;">
+                        <span class="visually-hidden">Memuat...</span>
+                    </div>
+                    <h6 class="fw-bold text-white mb-1">Membaca Berkas Script MikroTik...</h6>
+                    <p class="small text-muted mb-0">Sedang mengambil data konfigurasi dari server.</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="rscErrorState" class="d-none flex-column align-items-center justify-content-center p-5 text-center" style="min-height: 420px;">
+                    <div class="badge bg-danger-subtle text-danger p-3 rounded-circle mb-3">
+                        <i class="bi bi-exclamation-triangle-fill fs-2"></i>
+                    </div>
+                    <h5 class="fw-bold text-white mb-2">Gagal Membaca Script</h5>
+                    <p class="text-danger-emphasis small mb-3 max-w-md" id="rscErrorMessage">
+                        Terjadi kesalahan saat memuat isi berkas.
+                    </p>
+                    <button type="button" class="btn btn-sm btn-outline-light rounded-2 px-3" onclick="retryRscPreview()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Coba Lagi
+                    </button>
+                </div>
+
+                <!-- Code Container -->
+                <div id="rscCodeWrapper" class="d-none position-relative">
+                    <pre class="m-0 p-3 font-monospace d-flex text-start rsc-code-pre" id="rscCodePre" style="font-size: 0.88rem; line-height: 1.6; tab-size: 4;"><div class="rsc-lines-col shrink-0 pe-3 me-3 text-secondary text-end user-select-none border-end border-secondary border-opacity-25 font-monospace" id="rscLinesCol" style="opacity: 0.6; min-width: 48px;"></div><code class="rsc-code-content grow text-white" id="rscCodeContent" style="white-space: pre; outline: none;"></code></pre>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer border-top border-secondary border-opacity-25 py-2.5 px-4 d-flex justify-content-between align-items-center" style="background-color: #0b1120;">
+                <div class="text-muted small d-flex align-items-center gap-3">
+                    <span><kbd class="bg-secondary bg-opacity-25 text-white-50 border-0 px-1.5 py-0.5 rounded">Ctrl + F</kbd> Cari teks</span>
+                    <span><kbd class="bg-secondary bg-opacity-25 text-white-50 border-0 px-1.5 py-0.5 rounded">Esc</kbd> Tutup modal</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary text-white-50 border-secondary border-opacity-50 px-3" data-bs-dismiss="modal">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Embedded Styles for MikroTik Syntax Highlighting -->
+<style>
+    /* Metadata Info Pills (High Contrast & Clean) */
+    .rsc-info-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.65rem;
+        background-color: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+    .rsc-info-label {
+        color: #94a3b8;
+        font-weight: 500;
+        font-size: 0.78rem;
+    }
+    .rsc-info-value {
+        color: #f8fafc;
+        font-weight: 600;
+        font-size: 0.78rem;
+    }
+
+    /* Search Box (Clear, Readable Placeholder & Typed Text) */
+    .rsc-search-box {
+        background-color: #1e293b !important;
+        border: 1px solid #475569 !important;
+        border-radius: 6px !important;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+    .rsc-search-box:focus-within {
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3) !important;
+        background-color: #0f172a !important;
+    }
+    .rsc-search-icon {
+        background-color: transparent !important;
+        border: none !important;
+        color: #38bdf8 !important;
+        padding-left: 0.75rem !important;
+        padding-right: 0.35rem !important;
+        font-size: 0.85rem !important;
+    }
+    .rsc-search-input {
+        background-color: transparent !important;
+        border: none !important;
+        color: #ffffff !important;
+        font-size: 0.84rem !important;
+        font-weight: 500 !important;
+        padding: 0.35rem 0.5rem !important;
+    }
+    .rsc-search-input::placeholder {
+        color: #cbd5e1 !important; /* Clearly visible, bright light slate placeholder */
+        opacity: 1 !important;
+        font-weight: 400 !important;
+    }
+    .rsc-search-input:focus {
+        box-shadow: none !important;
+        color: #ffffff !important;
+        background-color: transparent !important;
+    }
+    .rsc-search-count {
+        background-color: transparent !important;
+        border: none !important;
+        color: #38bdf8 !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
+        padding-left: 0.25rem !important;
+        padding-right: 0.25rem !important;
+        user-select: none !important;
+    }
+    .rsc-search-btn {
+        background-color: transparent !important;
+        border: none !important;
+        color: #94a3b8 !important;
+        font-size: 0.78rem !important;
+        padding: 0.25rem 0.4rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: color 0.15s ease, opacity 0.15s ease !important;
+    }
+    .rsc-search-btn:hover:not(:disabled) {
+        color: #ffffff !important;
+    }
+    .rsc-search-btn:disabled {
+        opacity: 0.3 !important;
+        cursor: not-allowed !important;
+    }
+
+    /* Toolbar Action Buttons */
+    .rsc-btn-tool {
+        background-color: #1e293b !important;
+        border: 1px solid #475569 !important;
+        color: #f1f5f9 !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+        transition: all 0.15s ease !important;
+    }
+    .rsc-btn-tool:hover {
+        background-color: #334155 !important;
+        border-color: #64748b !important;
+        color: #ffffff !important;
+    }
+
+    /* MikroTik Script Syntax Highlighting Palette */
+    .rsc-comment { color: #94a3b8; font-style: italic; }
+    .rsc-path { color: #38bdf8; font-weight: 700; }
+    .rsc-verb { color: #f472b6; font-weight: 600; }
+    .rsc-key { color: #34d399; }
+    .rsc-string { color: #fbbf24; }
+    .rsc-ip { color: #a78bfa; font-weight: 500; }
+    .rsc-var { color: #fb923c; }
+    
+    /* Search Highlighting */
+    .rsc-highlight { 
+        background-color: #f59e0b !important; 
+        color: #000000 !important; 
+        font-weight: 700 !important; 
+        border-radius: 3px !important; 
+        padding: 1px 3px !important;
+        box-shadow: 0 0 4px rgba(245, 158, 11, 0.4) !important;
+    }
+    .rsc-highlight.rsc-highlight-active {
+        background-color: #38bdf8 !important;
+        color: #041226 !important;
+        outline: 2px solid #ffffff !important;
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.95) !important;
+        position: relative !important;
+        z-index: 5 !important;
+        animation: rscPulseActive 1.2s infinite alternate ease-in-out;
+    }
+    @keyframes rscPulseActive {
+        0% { transform: scale(1); box-shadow: 0 0 8px rgba(56, 189, 248, 0.7); }
+        100% { transform: scale(1.04); box-shadow: 0 0 16px rgba(56, 189, 248, 1); }
+    }
+    .rsc-code-pre.word-wrap-active code { white-space: pre-wrap !important; word-break: break-word !important; }
+    
+    /* Scrollbar styling for code view */
+    #rscCodeContainer::-webkit-scrollbar { width: 8px; height: 8px; }
+    #rscCodeContainer::-webkit-scrollbar-track { background: #0b1120; }
+    #rscCodeContainer::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+    #rscCodeContainer::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+    /* Modal Fullscreen Utility */
+    .modal-fullscreen-custom { max-width: 100vw !important; margin: 0 !important; height: 100vh !important; }
+    .modal-fullscreen-custom .modal-content { height: 100vh !important; border-radius: 0 !important; }
+    .modal-fullscreen-custom #rscCodeContainer { max-height: calc(100vh - 160px) !important; height: calc(100vh - 160px) !important; }
+</style>
+
+<!-- Script Logic for RSC Previewer -->
+<script>
+    let currentRscBackupId = null;
+    let rawRscScriptContent = '';
+    let currentRscFontSize = 14;
+    let isRscWordWrap = false;
+    let isRscFullscreen = false;
+    let isRawTextMode = false;
+    let rscMaxLinesRendered = 2500; // Fast initial limit for huge scripts
+
+    /**
+     * Open RSC Script Preview Modal by Backup ID
+     */
+    function openRscPreview(backupId) {
+        currentRscBackupId = backupId;
+        const modalEl = document.getElementById('rscPreviewModal');
+        if (!modalEl) return;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        loadRscScript(backupId);
+    }
+
+    /**
+     * Fetch RSC script content from server
+     */
+    function loadRscScript(backupId) {
+        const loadingState = document.getElementById('rscLoadingState');
+        const errorState = document.getElementById('rscErrorState');
+        const codeWrapper = document.getElementById('rscCodeWrapper');
+        const searchInput = document.getElementById('rscSearchInput');
+        const searchCount = document.getElementById('rscSearchCount');
+        const truncatedBanner = document.getElementById('rscTruncatedBanner');
+
+        if (loadingState) loadingState.classList.remove('d-none');
+        if (errorState) errorState.classList.add('d-none');
+        if (codeWrapper) codeWrapper.classList.add('d-none');
+        if (truncatedBanner) truncatedBanner.classList.add('d-none');
+        if (searchInput) searchInput.value = '';
+        if (searchCount) searchCount.classList.add('d-none');
+        const prevBtn = document.getElementById('rscSearchPrevBtn');
+        const nextBtn = document.getElementById('rscSearchNextBtn');
+        if (prevBtn) prevBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        rscCurrentMatchIdx = 0;
+        rscTotalMatches = 0;
+
+        fetch(`/backup/preview/${backupId}`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || `Gagal memuat script (Status ${response.status})`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.message || 'Gagal membaca berkas script.');
+            }
+
+            // Populate metadata
+            document.getElementById('rscModalFilename').textContent = data.filename;
+            document.getElementById('rscModalRouter').textContent = data.router_name;
+            
+            const ownerBadge = document.getElementById('rscModalOwnerBadge');
+            const ownerEl = document.getElementById('rscModalOwner');
+            if (data.owner_name && data.owner_name !== 'N/A') {
+                if (ownerEl) ownerEl.textContent = data.owner_name;
+                if (ownerBadge) ownerBadge.classList.remove('d-none');
+            } else if (ownerBadge) {
+                ownerBadge.classList.add('d-none');
+            }
+
+            document.getElementById('rscModalSize').textContent = data.size;
+            document.getElementById('rscModalDate').textContent = data.created_at;
+            document.getElementById('rscModalLines').textContent = data.lines_count.toLocaleString();
+            
+            const downloadBtn = document.getElementById('rscDownloadBtn');
+            if (downloadBtn) {
+                downloadBtn.href = data.download_url;
+            }
+
+            // Store raw content
+            rawRscScriptContent = data.content || '';
+
+            // Reset lines render limit
+            rscMaxLinesRendered = 2500;
+
+            // Render code
+            renderRscContent();
+
+            if (loadingState) loadingState.classList.add('d-none');
+            if (codeWrapper) codeWrapper.classList.remove('d-none');
+        })
+        .catch(err => {
+            if (loadingState) loadingState.classList.add('d-none');
+            if (errorState) {
+                errorState.classList.remove('d-none');
+                const errMsgEl = document.getElementById('rscErrorMessage');
+                if (errMsgEl) errMsgEl.textContent = err.message || 'Terjadi kesalahan jaringan atau server saat membaca berkas script.';
+            }
+        });
+    }
+
+    function retryRscPreview() {
+        if (currentRscBackupId) {
+            loadRscScript(currentRscBackupId);
+        }
+    }
+
+    /**
+     * Escape HTML special characters
+     */
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    let rscAllMatches = [];
+    let rscCurrentMatchIdx = 0;
+    let rscTotalMatches = 0;
+
+    /**
+     * Fast in-memory full script search (runs in ~6ms across 79,000 lines)
+     */
+    function findScriptMatches(cleanTerm) {
+        if (!cleanTerm) return [];
+        const escaped = cleanTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escaped, 'gi');
+        const allLines = rawRscScriptContent.split(/\r?\n/);
+        const matches = [];
+
+        for (let i = 0; i < allLines.length; i++) {
+            regex.lastIndex = 0;
+            let m;
+            while ((m = regex.exec(allLines[i])) !== null) {
+                matches.push({
+                    matchIdx: matches.length,
+                    lineIdx: i,
+                    lineNum: i + 1,
+                    col: m.index,
+                    text: m[0]
+                });
+            }
+        }
+        return matches;
+    }
+
+    /**
+     * Helper to highlight non-search chunks into MikroTik syntax tokens
+     */
+    function highlightMikroTikTokens(chunk) {
+        if (!chunk) return '';
+        const tokenPattern = /("(?:\\\\.|[^"\\\\])*")|(\b[a-zA-Z0-9_\-]+(?==))|(\b(?:add|set|remove|find|enable|disable|print|export|get|move)\b)|(\b\d{1,3}(?:\.\d{1,3}){3}(?:\/\d{1,2})?\b)|(\$[a-zA-Z0-9_\-]+)/g;
+        let match;
+        let lastIdx = 0;
+        let out = '';
+        while ((match = tokenPattern.exec(chunk)) !== null) {
+            if (match.index > lastIdx) {
+                out += escapeHtml(chunk.substring(lastIdx, match.index));
+            }
+            let type = 'text';
+            if (match[1]) type = 'string';
+            else if (match[2]) type = 'key';
+            else if (match[3]) type = 'verb';
+            else if (match[4]) type = 'ip';
+            else if (match[5]) type = 'var';
+            out += `<span class="rsc-${type}">${escapeHtml(match[0])}</span>`;
+            lastIdx = match.index + match[0].length;
+        }
+        if (lastIdx < chunk.length) {
+            out += escapeHtml(chunk.substring(lastIdx));
+        }
+        return out;
+    }
+
+    /**
+     * Robust Token-based Lexer with Any-Text Search Matching
+     * Accurately renders syntax tokens with search marks up to maxLines (defaults to 2,500 or active match line).
+     */
+    function highlightMikroTikScript(scriptText, searchTerm = '', maxLines = 2500) {
+        const allLines = scriptText.split(/\r?\n/);
+        const totalLinesCount = allLines.length;
+
+        const cleanTerm = (searchTerm || '').trim();
+        const hasSearch = cleanTerm.length > 0;
+        const searchRegex = hasSearch ? new RegExp(cleanTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null;
+
+        // Render up to maxLines to keep DOM lightweight and instantaneous
+        const linesToProcess = (maxLines && maxLines > 0) ? allLines.slice(0, maxLines) : allLines;
+
+        const highlightedLines = [];
+        const lineNumbers = [];
+        let matchCount = 0;
+
+        linesToProcess.forEach((line, index) => {
+            lineNumbers.push(index + 1);
+            const trimmed = line.trim();
+
+            // 1. Comment line
+            if (trimmed.startsWith('#')) {
+                if (hasSearch && searchRegex.test(line)) {
+                    searchRegex.lastIndex = 0;
+                    let lastIdx = 0;
+                    let m;
+                    let lineOut = '';
+                    while ((m = searchRegex.exec(line)) !== null) {
+                        if (m.index > lastIdx) {
+                            lineOut += escapeHtml(line.substring(lastIdx, m.index));
+                        }
+                        lineOut += `<mark class="rsc-highlight" data-match-idx="${matchCount++}">${escapeHtml(m[0])}</mark>`;
+                        lastIdx = m.index + m[0].length;
+                    }
+                    if (lastIdx < line.length) {
+                        lineOut += escapeHtml(line.substring(lastIdx));
+                    }
+                    highlightedLines.push(`<span class="rsc-comment">${lineOut}</span>`);
+                } else {
+                    highlightedLines.push(`<span class="rsc-comment">${escapeHtml(line)}</span>`);
+                }
+                return;
+            }
+
+            // 2. Section command path (e.g. /interface ovpn-client, /ip firewall mangle)
+            if (trimmed.startsWith('/')) {
+                if (hasSearch && searchRegex.test(line)) {
+                    searchRegex.lastIndex = 0;
+                    let lastIdx = 0;
+                    let m;
+                    let lineOut = '';
+                    while ((m = searchRegex.exec(line)) !== null) {
+                        if (m.index > lastIdx) {
+                            lineOut += escapeHtml(line.substring(lastIdx, m.index));
+                        }
+                        lineOut += `<mark class="rsc-highlight" data-match-idx="${matchCount++}">${escapeHtml(m[0])}</mark>`;
+                        lastIdx = m.index + m[0].length;
+                    }
+                    if (lastIdx < line.length) {
+                        lineOut += escapeHtml(line.substring(lastIdx));
+                    }
+                    highlightedLines.push(`<span class="rsc-path">${lineOut}</span>`);
+                } else {
+                    highlightedLines.push(`<span class="rsc-path">${escapeHtml(line)}</span>`);
+                }
+                return;
+            }
+
+            // 3. Normal configuration lines
+            if (hasSearch && searchRegex.test(line)) {
+                searchRegex.lastIndex = 0;
+                let lastIdx = 0;
+                let m;
+                let lineOut = '';
+                while ((m = searchRegex.exec(line)) !== null) {
+                    if (m.index > lastIdx) {
+                        lineOut += highlightMikroTikTokens(line.substring(lastIdx, m.index));
+                    }
+                    lineOut += `<mark class="rsc-highlight" data-match-idx="${matchCount++}">${escapeHtml(m[0])}</mark>`;
+                    lastIdx = m.index + m[0].length;
+                }
+                if (lastIdx < line.length) {
+                    lineOut += highlightMikroTikTokens(line.substring(lastIdx));
+                }
+                highlightedLines.push(lineOut);
+            } else {
+                highlightedLines.push(highlightMikroTikTokens(line));
+            }
+        });
+
+        return {
+            html: highlightedLines.join('\n'),
+            lineNumbersText: lineNumbers.join('\n'),
+            matches: matchCount,
+            totalLines: totalLinesCount,
+            displayedLines: linesToProcess.length,
+            isTruncated: totalLinesCount > linesToProcess.length
+        };
+    }
+
+    /**
+     * Render either highlighted code or pure raw text
+     */
+    function renderRscContent(searchTerm = '', preserveActiveIndex = false) {
+        const codeEl = document.getElementById('rscCodeContent');
+        const linesEl = document.getElementById('rscLinesCol');
+        const truncatedBanner = document.getElementById('rscTruncatedBanner');
+
+        if (!codeEl || !linesEl) return;
+        const cleanTerm = (searchTerm || '').trim();
+        const hasSearch = cleanTerm.length > 0;
+
+        if (hasSearch) {
+            rscAllMatches = findScriptMatches(cleanTerm);
+            rscTotalMatches = rscAllMatches.length;
+            if (!preserveActiveIndex) {
+                rscCurrentMatchIdx = 0;
+            } else if (rscCurrentMatchIdx >= rscTotalMatches) {
+                rscCurrentMatchIdx = Math.max(0, rscTotalMatches - 1);
+            }
+        } else {
+            rscAllMatches = [];
+            rscTotalMatches = 0;
+            rscCurrentMatchIdx = 0;
+        }
+
+        // Determine how many lines to render
+        let linesToRender = rscMaxLinesRendered;
+        if (hasSearch && rscTotalMatches > 0 && rscMaxLinesRendered > 0) {
+            const activeMatch = rscAllMatches[rscCurrentMatchIdx];
+            if (activeMatch) {
+                linesToRender = Math.max(2500, activeMatch.lineNum + 50);
+            }
+        }
+
+        if (isRawTextMode) {
+            // Mode Teks Murni (with search highlights support)
+            const allLines = rawRscScriptContent.split(/\r?\n/);
+            const linesToProcess = (linesToRender > 0) ? allLines.slice(0, linesToRender) : allLines;
+            
+            const lineNumbers = [];
+            for (let i = 1; i <= linesToProcess.length; i++) {
+                lineNumbers.push(i);
+            }
+            linesEl.textContent = lineNumbers.join('\n');
+
+            if (hasSearch) {
+                const searchRegex = new RegExp(cleanTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                let matchCount = 0;
+                const outLines = [];
+                linesToProcess.forEach(line => {
+                    searchRegex.lastIndex = 0;
+                    if (searchRegex.test(line)) {
+                        searchRegex.lastIndex = 0;
+                        let lastIdx = 0;
+                        let m;
+                        let lineOut = '';
+                        while ((m = searchRegex.exec(line)) !== null) {
+                            if (m.index > lastIdx) {
+                                lineOut += escapeHtml(line.substring(lastIdx, m.index));
+                            }
+                            lineOut += `<mark class="rsc-highlight" data-match-idx="${matchCount++}">${escapeHtml(m[0])}</mark>`;
+                            lastIdx = m.index + m[0].length;
+                        }
+                        if (lastIdx < line.length) {
+                            lineOut += escapeHtml(line.substring(lastIdx));
+                        }
+                        outLines.push(lineOut);
+                    } else {
+                        outLines.push(escapeHtml(line));
+                    }
+                });
+                codeEl.innerHTML = outLines.join('\n');
+            } else {
+                codeEl.textContent = linesToProcess.join('\n');
+            }
+
+            if (truncatedBanner) truncatedBanner.classList.add('d-none');
+        } else {
+            // Mode Syntax Highlighting
+            const result = highlightMikroTikScript(rawRscScriptContent, searchTerm, linesToRender);
+            codeEl.innerHTML = result.html;
+            linesEl.textContent = result.lineNumbersText;
+
+            if (truncatedBanner) {
+                if (result.isTruncated && !hasSearch) {
+                    truncatedBanner.classList.remove('d-none');
+                    document.getElementById('rscDisplayedLinesCount').textContent = result.displayedLines.toLocaleString();
+                    document.getElementById('rscTotalLinesBanner').textContent = result.totalLines.toLocaleString();
+                } else {
+                    truncatedBanner.classList.add('d-none');
+                }
+            }
+        }
+
+        updateSearchUI();
+    }
+
+    /**
+     * Update Search UI counter and next/prev button states
+     */
+    function updateSearchUI() {
+        const countEl = document.getElementById('rscSearchCount');
+        const prevBtn = document.getElementById('rscSearchPrevBtn');
+        const nextBtn = document.getElementById('rscSearchNextBtn');
+        const searchInput = document.getElementById('rscSearchInput');
+        const term = searchInput ? searchInput.value.trim() : '';
+
+        if (!term) {
+            if (countEl) countEl.classList.add('d-none');
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
+            document.querySelectorAll('.rsc-highlight.rsc-highlight-active').forEach(el => {
+                el.classList.remove('rsc-highlight-active');
+            });
+            return;
+        }
+
+        if (countEl) {
+            countEl.classList.remove('d-none');
+            if (rscTotalMatches > 0) {
+                countEl.textContent = `${rscCurrentMatchIdx + 1}/${rscTotalMatches}`;
+                countEl.style.color = '#38bdf8';
+            } else {
+                countEl.textContent = '0/0';
+                countEl.style.color = '#f87171';
+            }
+        }
+
+        if (prevBtn) prevBtn.disabled = (rscTotalMatches <= 1);
+        if (nextBtn) nextBtn.disabled = (rscTotalMatches <= 1);
+
+        if (rscTotalMatches > 0) {
+            jumpToMatch(rscCurrentMatchIdx);
+        }
+    }
+
+    /**
+     * Scroll smoothly inside code container to the active match
+     */
+    function jumpToMatch(index) {
+        if (rscTotalMatches === 0) return;
+
+        document.querySelectorAll('.rsc-highlight.rsc-highlight-active').forEach(el => {
+            el.classList.remove('rsc-highlight-active');
+        });
+
+        const targetMark = document.querySelector(`.rsc-highlight[data-match-idx="${index}"]`);
+        if (targetMark) {
+            targetMark.classList.add('rsc-highlight-active');
+            
+            const container = document.getElementById('rscCodeContainer');
+            if (container) {
+                const containerRect = container.getBoundingClientRect();
+                const targetRect = targetMark.getBoundingClientRect();
+                const offset = (targetRect.top - containerRect.top) - (container.clientHeight / 2) + (targetRect.height / 2);
+                container.scrollBy({ top: offset, behavior: 'smooth' });
+            }
+        }
+    }
+
+    /**
+     * Jump to next search match
+     */
+    function rscNextMatch() {
+        if (rscTotalMatches <= 0) return;
+        rscCurrentMatchIdx = (rscCurrentMatchIdx + 1) % rscTotalMatches;
+        
+        // Check if next match is rendered in DOM
+        const targetMark = document.querySelector(`.rsc-highlight[data-match-idx="${rscCurrentMatchIdx}"]`);
+        if (!targetMark) {
+            renderRscContent(document.getElementById('rscSearchInput')?.value || '', true);
+        } else {
+            updateSearchUI();
+        }
+    }
+
+    /**
+     * Jump to previous search match
+     */
+    function rscPrevMatch() {
+        if (rscTotalMatches <= 0) return;
+        rscCurrentMatchIdx = (rscCurrentMatchIdx - 1 + rscTotalMatches) % rscTotalMatches;
+        
+        // Check if prev match is rendered in DOM
+        const targetMark = document.querySelector(`.rsc-highlight[data-match-idx="${rscCurrentMatchIdx}"]`);
+        if (!targetMark) {
+            renderRscContent(document.getElementById('rscSearchInput')?.value || '', true);
+        } else {
+            updateSearchUI();
+        }
+    }
+
+    /**
+     * Handle keyboard navigation inside search input
+     */
+    function handleRscSearchKeyDown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                rscPrevMatch();
+            } else {
+                rscNextMatch();
+            }
+        } else if (e.key === 'Escape') {
+            clearRscSearch();
+        }
+    }
+
+    /**
+     * Load all lines if truncated
+     */
+    function loadAllRscLines() {
+        rscMaxLinesRendered = 0; // 0 means no limit
+        renderRscContent(document.getElementById('rscSearchInput')?.value || '');
+    }
+
+    /**
+     * Toggle View Mode between Syntax Highlighting and Raw Text
+     */
+    function toggleRscViewMode() {
+        isRawTextMode = !isRawTextMode;
+        const btn = document.getElementById('rscModeToggleBtn');
+        const icon = document.getElementById('rscModeIcon');
+        const text = document.getElementById('rscModeText');
+
+        if (isRawTextMode) {
+            if (btn) {
+                btn.classList.add('btn-light', 'text-dark', 'fw-semibold');
+                btn.classList.remove('rsc-btn-tool');
+            }
+            if (icon) icon.className = 'bi bi-palette-fill text-primary';
+            if (text) text.textContent = 'Kembali ke Mode Warna';
+        } else {
+            if (btn) {
+                btn.classList.remove('btn-light', 'text-dark', 'fw-semibold');
+                btn.classList.add('rsc-btn-tool');
+            }
+            if (icon) icon.className = 'bi bi-palette text-info';
+            if (text) text.textContent = 'Mode Teks Murni';
+        }
+
+        renderRscContent(document.getElementById('rscSearchInput')?.value || '');
+    }
+
+    /**
+     * Search filtering with debounce
+     */
+    let searchDebounceTimer = null;
+    function handleRscSearch(term) {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            renderRscContent(term);
+        }, 150);
+    }
+
+    function clearRscSearch() {
+        const searchInput = document.getElementById('rscSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.focus();
+        }
+        renderRscContent('');
+    }
+
+    /**
+     * Toggle Word Wrap
+     */
+    function toggleRscWordWrap() {
+        const preEl = document.getElementById('rscCodePre');
+        const btn = document.getElementById('rscWrapBtn');
+        if (!preEl) return;
+
+        isRscWordWrap = !isRscWordWrap;
+        if (isRscWordWrap) {
+            preEl.classList.add('word-wrap-active');
+            if (btn) {
+                btn.classList.add('btn-light', 'text-dark', 'fw-semibold');
+                btn.classList.remove('rsc-btn-tool');
+            }
+        } else {
+            preEl.classList.remove('word-wrap-active');
+            if (btn) {
+                btn.classList.remove('btn-light', 'text-dark', 'fw-semibold');
+                btn.classList.add('rsc-btn-tool');
+            }
+        }
+    }
+
+    /**
+     * Adjust Font Size
+     */
+    function adjustRscFontSize(delta) {
+        currentRscFontSize = Math.max(11, Math.min(22, currentRscFontSize + delta));
+        const preEl = document.getElementById('rscCodePre');
+        if (preEl) {
+            preEl.style.fontSize = `${currentRscFontSize}px`;
+        }
+    }
+
+    /**
+     * Toggle Fullscreen Mode
+     */
+    function toggleRscFullscreen() {
+        const dialog = document.getElementById('rscModalDialog');
+        const btn = document.getElementById('rscToggleFullscreenBtn');
+        if (!dialog) return;
+
+        isRscFullscreen = !isRscFullscreen;
+        if (isRscFullscreen) {
+            dialog.classList.add('modal-fullscreen-custom');
+            if (btn) btn.innerHTML = '<i class="bi bi-fullscreen-exit fs-6"></i>';
+        } else {
+            dialog.classList.remove('modal-fullscreen-custom');
+            if (btn) btn.innerHTML = '<i class="bi bi-arrows-fullscreen fs-6"></i>';
+        }
+    }
+
+    /**
+     * Copy Script Content to Clipboard
+     * ALWAYS copies 100% pure raw script without any HTML tags or parameters.
+     */
+    function copyRscContent() {
+        if (!rawRscScriptContent) return;
+
+        navigator.clipboard.writeText(rawRscScriptContent).then(() => {
+            const copyBtn = document.getElementById('rscCopyBtn');
+            const copyIcon = document.getElementById('rscCopyIcon');
+            const copyText = document.getElementById('rscCopyText');
+
+            if (copyBtn) {
+                copyBtn.classList.remove('btn-light');
+                copyBtn.classList.add('btn-success');
+            }
+            if (copyIcon) copyIcon.className = 'bi bi-check2-circle';
+            if (copyText) copyText.textContent = 'Script Tersalin!';
+
+            setTimeout(() => {
+                if (copyBtn) {
+                    copyBtn.classList.remove('btn-success');
+                    copyBtn.classList.add('btn-light');
+                }
+                if (copyIcon) copyIcon.className = 'bi bi-clipboard';
+                if (copyText) copyText.textContent = 'Salin Script';
+            }, 2000);
+        }).catch(() => {
+            alert('Gagal menyalin teks ke papan klip.');
+        });
+    }
+
+    // Keyboard shortcut listener for Ctrl+F inside modal
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('rscPreviewModal');
+        if (modal && modal.classList.contains('show')) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+                e.preventDefault();
+                const searchInput = document.getElementById('rscSearchInput');
+                if (searchInput) searchInput.focus();
+            }
+        }
+    });
+</script>

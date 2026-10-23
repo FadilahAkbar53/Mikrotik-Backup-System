@@ -1,0 +1,33 @@
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h4 class="fw-bold mb-0">Edit Router</h4>
+            <a href="/routers/<%= router.id %>" class="btn btn-outline-secondary btn-sm rounded-2">
+                <i class="bi bi-arrow-left me-1"></i> Batal
+            </a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form action="/routers/<%= router.id %>?_method=PUT" method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label fw-bold small text-dark">Nama / Identitas Router</label>
+                        <input type="text" class="form-control" id="name" name="name" value="<%= router.name %>" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">API Token</label>
+                        <input type="text" class="form-control bg-light font-monospace small" value="<%= router.api_token %>" readonly>
+                        <div class="form-text small text-muted">Token dapat diregenerasi melalui halaman detail router.</div>
+                    </div>
+
+                    <div class="d-grid gap-2 pt-2">
+                        <button type="submit" class="btn btn-primary fw-semibold py-2 rounded-2">
+                            <i class="bi bi-check-lg me-1"></i> Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

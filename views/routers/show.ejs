@@ -1,0 +1,315 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-start align-items-md-center mb-4 flex-column flex-md-row gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <a href="/routers" class="btn btn-light border btn-sm p-2 rounded-2 text-secondary" title="Kembali ke Daftar Router">
+            <i class="bi bi-arrow-left fs-6"></i>
+        </a>
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h3 class="fw-bold mb-0 text-dark"><%= router.name %></h3>
+                <% if (router.last_backup_time) { %>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">
+                        <i class="bi bi-check-circle-fill me-1"></i> Aktif
+                    </span>
+                <% } else { %>
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2.5 py-1 small">
+                        <i class="bi bi-dash-circle me-1"></i> Belum ada backup
+                    </span>
+                <% } %>
+            </div>
+            <p class="text-muted small mb-0">
+                Pemilik: <span class="text-dark fw-medium"><%= router.owner_name || 'N/A' %></span>
+                <% if (router.last_backup_time) { %>
+                    &bull; Terakhir: <span class="text-dark fw-medium"><%= formatDate(router.last_backup_time) %> WIB</span> 
+                    <span class="text-muted">(<%= diffForHumans(router.last_backup_time) %>)</span>
+                <% } %>
+            </p>
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <a href="/routers/<%= router.id %>/edit" class="btn btn-light border btn-sm d-inline-flex align-items-center gap-1.5 rounded-2 text-secondary">
+            <i class="bi bi-pencil"></i>
+            <span>Edit</span>
+        </a>
+        <form action="/routers/<%= router.id %>/regenerate-token" method="POST" onsubmit="return confirm('Regenerate token akan membuat token lama tidak berlaku dan script pada MikroTik harus diperbarui. Lanjutkan?');">
+            <button type="submit" class="btn btn-light border btn-sm d-inline-flex align-items-center gap-1.5 rounded-2 text-secondary" title="Buat token autentikasi baru">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Reset Token</span>
+            </button>
+        </form>
+        <button type="button" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1.5 rounded-2" data-bs-toggle="modal" data-bs-target="#deleteRouterModal">
+            <i class="bi bi-trash"></i>
+            <span>Hapus</span>
+        </button>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs border-bottom mb-4" id="routerDetailTabs" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link <%= tab === 'backups' || tab === 'overview' ? 'active' : '' %> fw-semibold px-3 py-2.5 d-inline-flex align-items-center gap-2" href="/routers/<%= router.id %>?tab=backups">
+            <i class="bi bi-folder2-open text-primary"></i>
+            <span>Riwayat Backup</span>
+            <span class="badge <%= totalBackups > 0 ? 'bg-primary-subtle text-primary' : 'bg-light text-muted border' %> rounded-pill px-2 py-0.5 small"><%= totalBackups %></span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link <%= tab === 'script' ? 'active' : '' %> fw-semibold px-3 py-2.5 d-inline-flex align-items-center gap-2" href="/routers/<%= router.id %>?tab=script">
+            <i class="bi bi-terminal text-warning"></i>
+            <span>Script Generator</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link <%= tab === 'api' ? 'active' : '' %> fw-semibold px-3 py-2.5 d-inline-flex align-items-center gap-2" href="/routers/<%= router.id %>?tab=api">
+            <i class="bi bi-code-slash text-info"></i>
+            <span>API & Integrasi</span>
+        </a>
+    </li>
+</ul>
+
+<!-- Tab Contents -->
+<div class="tab-content">
+    <% if (tab === 'script') { %>
+        <!-- SCRIPT GENERATOR TAB -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-magic text-warning fs-5"></i>
+                    <h5 class="fw-bold mb-0">MikroTik Script & Scheduler Generator</h5>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <form method="GET" action="/routers/<%= router.id %>" class="row g-3 mb-4">
+                    <input type="hidden" name="tab" value="script">
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold small text-dark">Pilih Template Script</label>
+                        <select name="template_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <% templates.forEach(function(tpl) { %>
+                                <option value="<%= tpl.id %>" <%= tpl.id === selectedTemplateId ? 'selected' : '' %>>
+                                    <%= tpl.name %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small text-dark">Interval Scheduler</label>
+                        <select name="interval" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="1d" <%= interval === '1d' ? 'selected' : '' %>>1 Hari Sekali (1d)</option>
+                            <option value="12h" <%= interval === '12h' ? 'selected' : '' %>>12 Jam Sekali (12h)</option>
+                            <option value="6h" <%= interval === '6h' ? 'selected' : '' %>>6 Jam Sekali (6h)</option>
+                            <option value="1h" <%= interval === '1h' ? 'selected' : '' %>>1 Jam Sekali (1h)</option>
+                            <option value="7d" <%= interval === '7d' ? 'selected' : '' %>>1 Minggu Sekali (7d)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small text-dark">Jam Mulai (Start Time)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="start_time" class="form-control" value="<%= startTime %>" placeholder="02:00:00">
+                            <button type="submit" class="btn btn-outline-secondary">Terapkan</button>
+                        </div>
+                    </div>
+                </form>
+
+                <% if (activeTemplate) { %>
+                    <div class="p-3 bg-light rounded-2 border mb-3 small text-muted">
+                        <i class="bi bi-info-circle text-primary me-1"></i>
+                        <%= activeTemplate.description || 'Salin script di bawah ini ke terminal MikroTik RouterOS Anda.' %>
+                    </div>
+                <% } %>
+
+                <div class="position-relative">
+                    <button type="button" class="btn btn-sm btn-light border position-absolute top-0 end-0 m-3 d-inline-flex align-items-center gap-1 shadow-sm" onclick="copyScriptToClipboard()" id="copyScriptBtn">
+                        <i class="bi bi-clipboard"></i> <span>Salin Script</span>
+                    </button>
+                    <pre class="code-box p-4" style="max-height: 400px; overflow-y: auto;" id="scriptPreContent"><code><%= generatedScript %></code></pre>
+                </div>
+            </div>
+        </div>
+
+    <% } else if (tab === 'api') { %>
+        <!-- API & INTEGRASI TAB -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 px-4">
+                <h5 class="fw-bold mb-0"><i class="bi bi-code-slash text-info me-2"></i>Parameter Integrasi API</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-4">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Endpoint URL Upload</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace bg-light" value="http://localhost:3000/api/backup/upload" readonly id="apiUrlInput">
+                        <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('apiUrlInput').value); alert('URL disalin!');">
+                            <i class="bi bi-clipboard"></i> Salin URL
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold small text-muted text-uppercase">Router API Token</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control font-monospace bg-light" value="<%= router.api_token %>" readonly id="apiTokenInput">
+                        <button class="btn btn-outline-secondary" type="button" onclick="toggleTokenVisibility()">
+                            <i class="bi bi-eye" id="tokenEyeIcon"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText('<%= router.api_token %>'); alert('Token disalin!');">
+                            <i class="bi bi-clipboard"></i> Salin Token
+                        </button>
+                    </div>
+                    <div class="form-text small text-muted">Gunakan token ini pada header <code>X-Router-Token</code> atau query param <code>?token=...</code> saat mengunggah file.</div>
+                </div>
+
+                <div class="p-3 bg-light rounded-2 border">
+                    <h6 class="fw-bold mb-2 small text-uppercase text-dark">Contoh Request Curl</h6>
+                    <pre class="code-box p-3 mb-0" style="font-size: 0.8rem;"><code>curl -X POST "http://localhost:3000/api/backup/upload" \
+  -H "X-Router-Token: <%= router.api_token %>" \
+  -F "type=rsc" \
+  -F "file=@backup.rsc"</code></pre>
+                </div>
+            </div>
+        </div>
+
+    <% } else { %>
+        <!-- RIWAYAT BACKUP TAB (DEFAULT) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-semibold text-dark">Berkas Backup Tersimpan</span>
+                    <span class="text-muted small">&bull; <%= totalBackups %> file (<%= totalSizeFormatted %>)</span>
+                </div>
+                <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-light border text-secondary">
+                    <i class="bi bi-terminal me-1 text-primary"></i> Setup Script
+                </a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                        <tr>
+                            <th class="ps-4 py-3">Nama Berkas</th>
+                            <th class="py-3">Tipe</th>
+                            <th class="py-3">Ukuran</th>
+                            <th class="py-3">Waktu Backup</th>
+                            <th class="text-end pe-4 py-3">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (backups.length > 0) { %>
+                            <% backups.forEach(function(b) { %>
+                                <tr>
+                                    <td class="ps-4 py-3">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi <%= b.file_type === 'rsc' ? 'bi-file-earmark-code text-info' : 'bi-file-earmark-binary text-primary' %> fs-5"></i>
+                                            <span class="fw-medium text-dark font-monospace"><%= b.file_path ? b.file_path.split('/').pop() : 'backup' %></span>
+                                        </div>
+                                    </td>
+                                    <td class="py-3">
+                                        <span class="badge <%= b.file_type === 'rsc' ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle' %> text-uppercase fw-semibold" style="font-size: 0.7rem;">
+                                            .<%= b.file_type %>
+                                        </span>
+                                    </td>
+                                    <td class="py-3 text-secondary small font-monospace">
+                                        <%= formatBytes(b.file_size) %>
+                                    </td>
+                                    <td class="py-3 text-muted small">
+                                        <span class="text-dark fw-medium"><%= formatDate(b.created_at) %> WIB</span>
+                                        <div class="text-muted" style="font-size: 0.75rem;"><%= diffForHumans(b.created_at) %></div>
+                                    </td>
+                                    <td class="text-end pe-4 py-3">
+                                        <div class="d-flex align-items-center justify-content-end gap-1">
+                                            <% if (b.file_type === 'rsc') { %>
+                                                <a href="/backup/preview/<%= b.id %>" class="btn btn-sm btn-info text-white rounded-2 py-1 px-2.5 d-inline-flex align-items-center gap-1 shadow-sm" onclick="openRscPreview(<%= b.id %>); return false;" title="Lihat Isi Script (.rsc)">
+                                                    <i class="bi bi-file-earmark-code"></i> <span>Lihat Isi</span>
+                                                </a>
+                                            <% } %>
+                                            <a href="/backup/download/<%= b.id %>" class="btn btn-sm btn-outline-primary rounded-2 py-1 px-2.5" title="Unduh File">
+                                                <i class="bi bi-download me-1"></i> Unduh
+                                            </a>
+                                            <form action="/backup/<%= b.id %>?_method=DELETE" method="POST" class="d-inline" onsubmit="return confirm('Hapus file backup ini secara permanen?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-2 py-1 px-2" title="Hapus">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted small">
+                                    <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                    Belum ada berkas backup untuk router ini.
+                                    <div class="mt-2">
+                                        <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-primary">
+                                            Setup Script Backup Sekarang
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <% if (totalPages > 1) { %>
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+                    <small class="text-muted">Halaman <%= currentPage %> dari <%= totalPages %></small>
+                    <ul class="pagination pagination-sm mb-0">
+                        <% for (let p = 1; p <= totalPages; p++) { %>
+                            <li class="page-item <%= p === currentPage ? 'active' : '' %>">
+                                <a class="page-link" href="/routers/<%= router.id %>?tab=backups&page=<%= p %>"><%= p %></a>
+                            </li>
+                        <% } %>
+                    </ul>
+                </div>
+            <% } %>
+        </div>
+    <% } %>
+</div>
+
+<!-- Delete Router Confirmation Modal -->
+<div class="modal fade" id="deleteRouterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Konfirmasi Hapus Router</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Hapus router <strong><%= router.name %></strong> beserta seluruh riwayat backup-nya?</p>
+                <div class="alert alert-danger small mb-0">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Tindakan ini tidak dapat dibatalkan.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <form action="/routers/<%= router.id %>?_method=DELETE" method="POST">
+                    <button type="submit" class="btn btn-sm btn-danger">Ya, Hapus Permanen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copyScriptToClipboard() {
+        const text = document.getElementById('scriptPreContent').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copyScriptBtn');
+            btn.innerHTML = '<i class="bi bi-check-lg text-success"></i> <span class="text-success">Tersalin!</span>';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="bi bi-clipboard"></i> <span>Salin Script</span>';
+            }, 2000);
+        });
+    }
+
+    function toggleTokenVisibility() {
+        const input = document.getElementById('apiTokenInput');
+        const icon = document.getElementById('tokenEyeIcon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
+    }
+</script>

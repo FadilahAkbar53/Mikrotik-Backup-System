@@ -1,0 +1,24 @@
+# Node.js dependencies
+node_modules/
+
+# Environment configurations (Contains sensitive database credentials)
+.env
+.env.local
+.env.*.local
+
+# Storage & User Backups (Do not commit client router backup files to Git)
+storage/backups/*
+!storage/backups/.gitkeep
+storage/queue/*
+!storage/queue/.gitkeep
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# System & Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
