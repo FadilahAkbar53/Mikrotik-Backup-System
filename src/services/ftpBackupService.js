@@ -62,9 +62,18 @@ class FtpBackupService {
         }
 
         const port = parseInt(process.env.FTP_PORT || '2121', 10);
-        const pasvUrl = process.env.FTP_PASV_URL || process.env.APP_URL?.replace(/^https?:\/\//, '').split(':')[0] || '127.0.0.1';
+        let pasvUrl = process.env.FTP_PASV_URL;
+        if (!pasvUrl && process.env.APP_URL) {
+            pasvUrl = process.env.APP_URL.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+        }
+        if (!pasvUrl || pasvUrl === 'localhost') {
+            pasvUrl = '127.0.0.1';
+        }
+
         const pasvMin = parseInt(process.env.FTP_PASV_MIN || '10000', 10);
         const pasvMax = parseInt(process.env.FTP_PASV_MAX || '10050', 10);
+
+        console.log(`[FTP Server] Starting on port ${port} (PASV Host: ${pasvUrl}, Ports: ${pasvMin}-${pasvMax})...`);
 
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });

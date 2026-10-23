@@ -99,6 +99,10 @@ backupQueueService.init();
 const ftpBackupService = require('./services/ftpBackupService');
 ftpBackupService.start();
 
+// Initialize incoming directory watcher for SFTP/SCP/manual uploads
+const incomingWatcherService = require('./services/incomingWatcherService');
+incomingWatcherService.start();
+
 // Start Server
 const server = app.listen(PORT, () => {
     console.log(`=======================================================`);
@@ -115,6 +119,7 @@ const gracefulShutdown = (signal) => {
     server.close(async () => {
         console.log('[Server] HTTP connections closed.');
         try {
+            incomingWatcherService.stop();
             await ftpBackupService.stop();
             const db = require('./config/database');
             await db.destroy();
