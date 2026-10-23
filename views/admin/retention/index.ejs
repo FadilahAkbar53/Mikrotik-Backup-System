@@ -118,13 +118,24 @@
                                 Pembersihan Harian (00:05 WIB)
                             </label>
                         </div>
-                        <div class="form-check form-switch mb-0">
+                        <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" role="switch" id="retention_prune_on_upload" 
                                    name="retention_prune_on_upload" value="1" 
                                    <%= overview.prune_on_upload ? 'checked' : '' %>>
                             <label class="form-check-label fw-semibold text-dark small" for="retention_prune_on_upload">
                                 Pangkas Realtime Saat Upload Baru
                             </label>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="retention_replace_same_day" 
+                                   name="retention_replace_same_day" value="1" 
+                                   <%= overview.replace_same_day ? 'checked' : '' %>>
+                            <label class="form-check-label fw-semibold text-dark small" for="retention_replace_same_day">
+                                Gantikan Backup Hari yang Sama
+                            </label>
+                            <div class="text-muted" style="font-size: 0.72rem;">
+                                Jika router mengirim backup berkali-kali dalam 1 hari, file sebelumnya otomatis digantikan (maks 1 per tipe/hari).
+                            </div>
                         </div>
                     </div>
 

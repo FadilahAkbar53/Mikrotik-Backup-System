@@ -182,13 +182,50 @@
 
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
+                    <% 
+                        const currentSort = typeof sort !== 'undefined' ? sort : 'time';
+                        const currentOrder = typeof order !== 'undefined' ? order : 'desc';
+                    %>
                     <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
                         <tr>
-                            <th class="ps-4 py-3">Nama Berkas</th>
-                            <th class="py-3">Tipe</th>
-                            <th class="py-3">Ukuran</th>
-                            <th class="py-3">Waktu Backup</th>
-                            <th class="text-end pe-4 py-3">Aksi</th>
+                            <th class="ps-4 py-3">
+                                <a href="/routers/<%= router.id %>?tab=backups&sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %>" 
+                                   class="text-decoration-none <%= currentSort === 'name' ? 'fw-bold text-primary' : 'text-secondary' %> d-inline-flex align-items-center gap-1.5" 
+                                   title="Urutkan berdasarkan Nama Berkas">
+                                    <span>Nama Berkas</span>
+                                    <% if (currentSort === 'name') { %>
+                                        <i class="bi bi-sort-alpha-<%= currentOrder === 'asc' ? 'down' : 'up' %> fs-6"></i>
+                                    <% } else { %>
+                                        <i class="bi bi-arrow-down-up opacity-25"></i>
+                                    <% } %>
+                                </a>
+                            </th>
+                            <th class="py-3">
+                                <a href="/routers/<%= router.id %>?tab=backups&sort=type&order=<%= currentSort === 'type' && currentOrder === 'asc' ? 'desc' : 'asc' %>" 
+                                   class="text-decoration-none <%= currentSort === 'type' ? 'fw-bold text-primary' : 'text-secondary' %> d-inline-flex align-items-center gap-1.5" 
+                                   title="Urutkan berdasarkan Tipe File">
+                                    <span>Tipe</span>
+                                    <% if (currentSort === 'type') { %>
+                                        <i class="bi bi-sort-<%= currentOrder === 'asc' ? 'down' : 'up' %> fs-6"></i>
+                                    <% } else { %>
+                                        <i class="bi bi-arrow-down-up opacity-25"></i>
+                                    <% } %>
+                                </a>
+                            </th>
+                            <th class="py-3 text-secondary">Ukuran</th>
+                            <th class="py-3">
+                                <a href="/routers/<%= router.id %>?tab=backups&sort=time&order=<%= currentSort === 'time' && currentOrder === 'asc' ? 'desc' : 'asc' %>" 
+                                   class="text-decoration-none <%= currentSort === 'time' ? 'fw-bold text-primary' : 'text-secondary' %> d-inline-flex align-items-center gap-1.5" 
+                                   title="Urutkan berdasarkan Waktu Backup">
+                                    <span>Waktu Backup</span>
+                                    <% if (currentSort === 'time') { %>
+                                        <i class="bi bi-sort-numeric-<%= currentOrder === 'asc' ? 'down' : 'down-alt' %> fs-6"></i>
+                                    <% } else { %>
+                                        <i class="bi bi-arrow-down-up opacity-25"></i>
+                                    <% } %>
+                                </a>
+                            </th>
+                            <th class="text-end pe-4 py-3 text-secondary">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -255,7 +292,7 @@
                     <ul class="pagination pagination-sm mb-0">
                         <% for (let p = 1; p <= totalPages; p++) { %>
                             <li class="page-item <%= p === currentPage ? 'active' : '' %>">
-                                <a class="page-link" href="/routers/<%= router.id %>?tab=backups&page=<%= p %>"><%= p %></a>
+                                <a class="page-link" href="/routers/<%= router.id %>?tab=backups&sort=<%= currentSort %>&order=<%= currentOrder %>&page=<%= p %>"><%= p %></a>
                             </li>
                         <% } %>
                     </ul>

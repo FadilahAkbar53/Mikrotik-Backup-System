@@ -21,11 +21,13 @@ module.exports = {
             const maxDays = parseInt(req.body.retention_max_days_per_month, 10) || 7;
             const autoPrune = req.body.retention_auto_prune_enabled === '1' || req.body.retention_auto_prune_enabled === 'on';
             const pruneOnUpload = req.body.retention_prune_on_upload === '1' || req.body.retention_prune_on_upload === 'on';
+            const replaceSameDay = req.body.retention_replace_same_day === '1' || req.body.retention_replace_same_day === 'on';
 
             await retentionService.setSetting('retention_max_months', maxMonths, 'integer');
             await retentionService.setSetting('retention_max_days_per_month', maxDays, 'integer');
             await retentionService.setSetting('retention_auto_prune_enabled', autoPrune ? '1' : '0', 'boolean');
             await retentionService.setSetting('retention_prune_on_upload', pruneOnUpload ? '1' : '0', 'boolean');
+            await retentionService.setSetting('retention_replace_same_day', replaceSameDay ? '1' : '0', 'boolean');
 
             req.flash('success', 'Pengaturan kebijakan retensi berhasil diperbarui!');
             return res.redirect('/admin/retention');

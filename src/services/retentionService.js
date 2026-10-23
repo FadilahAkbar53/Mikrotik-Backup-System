@@ -68,6 +68,7 @@ class RetentionService {
         const maxDaysPerMonth = await this.getSetting('retention_max_days_per_month', 7);
         const autoPrune = await this.getSetting('retention_auto_prune_enabled', true);
         const pruneOnUpload = await this.getSetting('retention_prune_on_upload', true);
+        const replaceSameDay = await this.getSetting('retention_replace_same_day', true);
 
         const totalRow = await db('backups').select(
             db.raw('COUNT(*) as total_backups'),
@@ -164,6 +165,7 @@ class RetentionService {
             max_days_per_month: maxDaysPerMonth,
             auto_prune_enabled: autoPrune,
             prune_on_upload: pruneOnUpload,
+            replace_same_day: replaceSameDay,
             cutoff_date_formatted: cutoffDate.format('DD MMM YYYY'),
             last_pruned_at: lastPrunedAt,
             last_pruned_count: lastPrunedCount,
@@ -221,9 +223,55 @@ class RetentionService {
         return pruned;
     }
 
+    /**
+     * Replace older backups from the same day for the specified router and file type.
+     * Ensures each day only has at most 1 .backup and 1 .rsc (or latest per type).
+     */
+    async pruneSameDayDuplicates(routerId, fileType, date = new Date(), excludeBackupId = null, dryRun = false) {
+        const replaceSameDay = await this.getSetting('retention_replace_same_day', true);
+        if (!replaceSameDay) return [];
+
+        const dayStart = dayjs(date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const dayEnd = dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
+        let query = db('backups')
+            .where('router_id', routerId)
+            .where('file_type', fileType)
+            .whereBetween('created_at', [dayStart, dayEnd]);
+
+        if (excludeBackupId) {
+            query = query.whereNot('id', excludeBackupId);
+        }
+
+        const duplicates = await query;
+        const router = await db('routers').where('id', routerId).first();
+        const pruned = [];
+
+        for (const b of duplicates) {
+            pruned.push({
+                backup_id: b.id,
+                router_id: routerId,
+                router_name: router ? router.name : 'Router #' + routerId,
+                filename: path.basename(b.file_path),
+                file_size: parseInt(b.file_size, 10) || 0,
+                created_at: dayjs(b.created_at).format('YYYY-MM-DD HH:mm:ss'),
+                reason: `Penggantian backup hari yang sama (Hanya menyimpan backup terbaru per hari untuk tipe .${fileType})`
+            });
+
+            if (!dryRun) {
+                this.deletePhysicalFile(b.file_path);
+                await db('backups').where('id', b.id).delete();
+                console.log(`[Retention] Removed same-day duplicate backup ID ${b.id} (${b.file_path}) for router ${routerId}`);
+            }
+        }
+
+        return pruned;
+    }
+
     async pruneAll(dryRun = false) {
         const maxMonths = await this.getSetting('retention_max_months', 4);
         const maxDaysPerMonth = await this.getSetting('retention_max_days_per_month', 7);
+        const replaceSameDay = await this.getSetting('retention_replace_same_day', true);
         const cutoffDate = dayjs().subtract(maxMonths - 1, 'month').startOf('month');
 
         const allPruned = [];
@@ -251,7 +299,7 @@ class RetentionService {
             }
         }
 
-        // 2. Prune per router within active months
+        // 2. Prune per router within active months (FIFO max days per month)
         const routers = await db('routers').select('id');
         for (const r of routers) {
             for (let i = 0; i < maxMonths; i++) {
@@ -260,6 +308,47 @@ class RetentionService {
                 const mo = mDate.month() + 1;
                 const monthlyPruned = await this.pruneRouterMonth(r.id, yr, mo, dryRun);
                 allPruned.push(...monthlyPruned);
+            }
+        }
+
+        // 3. Prune same-day duplicates (Keep only newest backup of each type per day)
+        if (replaceSameDay) {
+            const sameDayGroups = await db('backups')
+                .select(
+                    'router_id',
+                    'file_type',
+                    db.raw('DATE(created_at) as backup_date'),
+                    db.raw('COUNT(*) as count'),
+                    db.raw('MAX(id) as latest_id')
+                )
+                .groupByRaw('router_id, file_type, DATE(created_at)')
+                .havingRaw('COUNT(*) > 1');
+
+            for (const group of sameDayGroups) {
+                const duplicates = await db('backups')
+                    .join('routers', 'backups.router_id', 'routers.id')
+                    .where('backups.router_id', group.router_id)
+                    .where('backups.file_type', group.file_type)
+                    .whereRaw('DATE(backups.created_at) = ?', [group.backup_date])
+                    .whereNot('backups.id', group.latest_id)
+                    .select('backups.*', 'routers.name as router_name');
+
+                for (const b of duplicates) {
+                    allPruned.push({
+                        backup_id: b.id,
+                        router_id: b.router_id,
+                        router_name: b.router_name,
+                        filename: path.basename(b.file_path),
+                        file_size: parseInt(b.file_size, 10) || 0,
+                        created_at: dayjs(b.created_at).format('YYYY-MM-DD HH:mm:ss'),
+                        reason: `Penggantian backup hari yang sama (Duplikat ${dayjs(b.created_at).format('DD MMM YYYY')}, hanya backup terbaru yang dipertahankan)`
+                    });
+
+                    if (!dryRun) {
+                        this.deletePhysicalFile(b.file_path);
+                        await db('backups').where('id', b.id).delete();
+                    }
+                }
             }
         }
 

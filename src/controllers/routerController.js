@@ -118,10 +118,24 @@ module.exports = {
             const totalBackups = parseInt(statsRow.total_backups, 10) || 0;
             const totalSize = parseInt(statsRow.total_size, 10) || 0;
 
+            // Sorting parameters for tab=backups (nama berkas, tipe, waktu backup)
+            const sort = (req.query.sort || 'time').toLowerCase();
+            const order = (req.query.order || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+
+            let sortColumn = 'created_at';
+            if (sort === 'name') {
+                sortColumn = 'file_path';
+            } else if (sort === 'type') {
+                sortColumn = 'file_type';
+            } else if (sort === 'time') {
+                sortColumn = 'created_at';
+            }
+
             // Paginated backups for tab=backups
             const backups = await db('backups')
                 .where('router_id', id)
-                .orderBy('created_at', 'desc')
+                .orderBy(sortColumn, order)
+                .orderBy('id', order)
                 .limit(limit)
                 .offset(offset);
 
@@ -152,7 +166,9 @@ module.exports = {
                 activeTemplate,
                 interval,
                 startTime,
-                generatedScript
+                generatedScript,
+                sort,
+                order
             });
         } catch (err) {
             console.error('Router show error:', err);

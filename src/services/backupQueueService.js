@@ -209,9 +209,10 @@ class BackupQueueService {
         const relativeSavedPath = path.join(relativeDir, finalFilename).replace(/\\/g, '/');
         const finalSize = fs.existsSync(finalDestPath) ? fs.statSync(finalDestPath).size : job.fileSize;
 
+        let insertedId = null;
         // 1. Insert into database
         await executeDbWithRetry(async () => {
-            await db('backups').insert({
+            const [id] = await db('backups').insert({
                 router_id: job.routerId,
                 file_type: job.type,
                 file_path: relativeSavedPath,
@@ -219,6 +220,7 @@ class BackupQueueService {
                 created_at: db.fn.now(),
                 updated_at: db.fn.now()
             });
+            insertedId = id;
 
             await db('routers').where('id', job.routerId).update({
                 last_backup_time: db.fn.now(),
@@ -226,8 +228,11 @@ class BackupQueueService {
             });
         });
 
-        // 2. Retention auto-prune (background non-blocking)
+        // 2. Retention auto-prune & Same-Day Replacement (background non-blocking)
         try {
+            // Replace any previous backup from today for this router and file type
+            await retentionService.pruneSameDayDuplicates(job.routerId, job.type, now.toDate(), insertedId);
+
             const autoPrune = await retentionService.getSetting('retention_auto_prune_enabled', true);
             const pruneOnUpload = await retentionService.getSetting('retention_prune_on_upload', true);
             if (autoPrune && pruneOnUpload) {

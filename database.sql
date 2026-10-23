@@ -116,6 +116,7 @@ INSERT INTO `system_settings` (`key`, `value`, `type`, `description`) VALUES
 ('retention_max_days_per_month', '7', 'integer', 'Maksimal jumlah tanggal/hari backup unik yang disimpan per bulan (Default: 7 hari terbaru).'),
 ('retention_auto_prune_enabled', '1', 'boolean', 'Sakelar utama kebijakan rotasi retensi penyimpanan otomatis.'),
 ('retention_prune_on_upload', '1', 'boolean', 'Pangkas backup terlama di bulan berjalan secara realtime setiap ada backup baru masuk.'),
+('retention_replace_same_day', '1', 'boolean', 'Gantikan backup lama pada hari yang sama jika ada upload baru (Maksimal 1 berkas per tipe/hari).'),
 ('retention_last_pruned_at', NULL, 'string', 'Waktu terakhir pembersihan backup dieksekusi.'),
 ('retention_last_pruned_count', '0', 'integer', 'Jumlah berkas yang dibersihkan pada eksekusi terakhir.'),
 ('retention_last_pruned_bytes', '0', 'integer', 'Ukuran ruang disk (byte) yang dihemat pada eksekusi terakhir.')
