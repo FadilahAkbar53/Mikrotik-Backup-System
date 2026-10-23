@@ -7,7 +7,7 @@ class ScriptService {
     }
 
     generateScript(router, templateContent, options = {}) {
-        const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+        const appUrl = (options.appUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
         const apiUrl = `${appUrl}/api/upload`;
         const interval = options.interval || '1d';
         const startTime = options.startTime || '02:00:00';

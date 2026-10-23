@@ -14,6 +14,7 @@ module.exports = (req, res, next) => {
     };
     res.locals.currentPath = req.path;
     res.locals.appName = process.env.APP_NAME || 'MikroTik Backup System';
+    res.locals.appUrl = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
     
     // Formatting helpers
     res.locals.formatDate = (date, format = 'DD MMM YYYY HH:mm') => {

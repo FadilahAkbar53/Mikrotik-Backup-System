@@ -136,7 +136,7 @@
                 <div class="mb-4">
                     <label class="form-label fw-bold small text-muted text-uppercase">Endpoint URL Upload</label>
                     <div class="input-group">
-                        <input type="text" class="form-control font-monospace bg-light" value="http://localhost:3000/api/backup/upload" readonly id="apiUrlInput">
+                        <input type="text" class="form-control font-monospace bg-light" value="<%= appUrl %>/api/backup/upload" readonly id="apiUrlInput">
                         <button class="btn btn-outline-secondary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('apiUrlInput').value); alert('URL disalin!');">
                             <i class="bi bi-clipboard"></i> Salin URL
                         </button>
@@ -159,7 +159,7 @@
 
                 <div class="p-3 bg-light rounded-2 border">
                     <h6 class="fw-bold mb-2 small text-uppercase text-dark">Contoh Request Curl</h6>
-                    <pre class="code-box p-3 mb-0" style="font-size: 0.8rem;"><code>curl -X POST "http://localhost:3000/api/backup/upload" \
+                    <pre class="code-box p-3 mb-0" style="font-size: 0.8rem;"><code>curl -X POST "<%= appUrl %>/api/backup/upload" \
   -H "X-Router-Token: <%= router.api_token %>" \
   -F "type=rsc" \
   -F "file=@backup.rsc"</code></pre>

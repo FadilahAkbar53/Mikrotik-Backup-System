@@ -134,7 +134,7 @@ module.exports = {
             const startTime = req.query.start_time || '02:00:00';
 
             const generatedScript = activeTemplate
-                ? scriptService.generateScript(router, activeTemplate.content || activeTemplate.script_content, { interval, startTime })
+                ? scriptService.generateScript(router, activeTemplate.content || activeTemplate.script_content, { interval, startTime, appUrl: res.locals.appUrl })
                 : '';
 
             return res.render('routers/show', {
