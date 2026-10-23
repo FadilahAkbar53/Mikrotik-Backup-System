@@ -1,6 +1,8 @@
 const FtpSrv = require('ftp-srv');
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
+const dns = require('dns').promises;
 const db = require('../config/database');
 const backupQueueService = require('./backupQueueService');
 
@@ -62,12 +64,24 @@ class FtpBackupService {
         }
 
         const port = parseInt(process.env.FTP_PORT || '2121', 10);
-        let pasvUrl = process.env.FTP_PASV_URL;
+        let pasvUrl = (process.env.FTP_PASV_URL || '').trim();
         if (!pasvUrl && process.env.APP_URL) {
             pasvUrl = process.env.APP_URL.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
         }
         if (!pasvUrl || pasvUrl === 'localhost') {
             pasvUrl = '127.0.0.1';
+        }
+
+        // RFC 959 PASV response requires 4 numeric IPv4 octets. Domain names are invalid in PASV reply!
+        if (pasvUrl !== '127.0.0.1' && !net.isIP(pasvUrl)) {
+            try {
+                const resolved = await dns.lookup(pasvUrl, { family: 4 });
+                console.log(`[FTP Server] Resolved PASV hostname '${pasvUrl}' to IPv4: ${resolved.address}`);
+                pasvUrl = resolved.address;
+            } catch (dnsErr) {
+                console.warn(`[FTP Server] Could not resolve PASV hostname '${pasvUrl}':`, dnsErr.message);
+                pasvUrl = '187.52.122.246';
+            }
         }
 
         const pasvMin = parseInt(process.env.FTP_PASV_MIN || '10000', 10);
