@@ -15,12 +15,17 @@ class ScriptService {
         const apiToken = router.api_token || '';
         const nowFormatted = dayjs().format('YYYY-MM-DD HH:mm:ss');
 
+        const ftpHost = process.env.FTP_PASV_URL || appUrl.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+        const ftpPort = process.env.FTP_PORT || '2121';
+
         let script = templateContent || '';
-        // Exact replacements from Laravel ScriptTemplate
+        // Exact replacements for router scripts
         script = script.replace(/\{\{TOKEN\}\}/g, apiToken);
         script = script.replace(/\{\{API_TOKEN\}\}/g, apiToken);
         script = script.replace(/\{\{URL\}\}/g, apiUrl);
         script = script.replace(/\{\{API_URL\}\}/g, apiUrl);
+        script = script.replace(/\{\{FTP_HOST\}\}/g, ftpHost);
+        script = script.replace(/\{\{FTP_PORT\}\}/g, ftpPort);
         script = script.replace(/\{\{ROUTER_NAME\}\}/g, routerName);
         script = script.replace(/\{\{DATE\}\}/g, nowFormatted);
         script = script.replace(/\{\{INTERVAL\}\}/g, interval);

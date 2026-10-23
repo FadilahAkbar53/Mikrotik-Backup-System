@@ -95,6 +95,10 @@ initRetentionCron();
 const backupQueueService = require('./services/backupQueueService');
 backupQueueService.init();
 
+// Initialize native FTP receiver for MikroTik RouterOS (.backup and .rsc uploads)
+const ftpBackupService = require('./services/ftpBackupService');
+ftpBackupService.start();
+
 // Start Server
 const server = app.listen(PORT, () => {
     console.log(`=======================================================`);
@@ -111,6 +115,7 @@ const gracefulShutdown = (signal) => {
     server.close(async () => {
         console.log('[Server] HTTP connections closed.');
         try {
+            await ftpBackupService.stop();
             const db = require('./config/database');
             await db.destroy();
             console.log('[Server] Database pool closed.');
