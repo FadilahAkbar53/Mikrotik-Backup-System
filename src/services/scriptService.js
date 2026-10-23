@@ -15,7 +15,10 @@ class ScriptService {
         const apiToken = router.api_token || '';
         const nowFormatted = dayjs().format('YYYY-MM-DD HH:mm:ss');
 
-        const ftpHost = process.env.FTP_PASV_URL || appUrl.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+        let ftpHost = process.env.FTP_PASV_URL || appUrl.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+        if (!ftpHost || ftpHost === 'localhost' || ftpHost === '127.0.0.1') {
+            ftpHost = '187.52.122.246';
+        }
         const ftpPort = process.env.FTP_PORT || '2121';
 
         let script = templateContent || '';
