@@ -7,6 +7,7 @@ module.exports = {
     async index(req, res) {
         try {
             const user = req.session.user;
+            const search = (req.query.search || req.query.q || '').trim();
             const page = parseInt(req.query.page, 10) || 1;
             const limit = 15;
             const offset = (page - 1) * limit;
@@ -17,6 +18,15 @@ module.exports = {
 
             if (user.role !== 'admin') {
                 query = query.where('routers.user_id', user.id);
+            }
+
+            if (search) {
+                query = query.where(function() {
+                    this.where('routers.name', 'like', `%${search}%`)
+                        .orWhere('routers.api_token', 'like', `%${search}%`)
+                        .orWhere('users.name', 'like', `%${search}%`)
+                        .orWhere('users.email', 'like', `%${search}%`);
+                });
             }
 
             const totalRow = await query.clone().countDistinct('routers.id as count').first();
@@ -40,7 +50,8 @@ module.exports = {
                 routers,
                 currentPage: page,
                 totalPages: Math.ceil(total / limit) || 1,
-                totalItems: total
+                totalItems: total,
+                search
             });
         } catch (err) {
             console.error('Routers index error:', err);
@@ -106,6 +117,8 @@ module.exports = {
                 return res.redirect('/routers');
             }
 
+            const search = (req.query.search || req.query.q || '').trim();
+
             // Total backups & size
             const statsRow = await db('backups')
                 .where('router_id', id)
@@ -115,7 +128,7 @@ module.exports = {
                 )
                 .first();
 
-            const totalBackups = parseInt(statsRow.total_backups, 10) || 0;
+            const overallTotalBackups = parseInt(statsRow.total_backups, 10) || 0;
             const totalSize = parseInt(statsRow.total_size, 10) || 0;
 
             // Sorting parameters for tab=backups (nama berkas, tipe, waktu backup)
@@ -131,9 +144,19 @@ module.exports = {
                 sortColumn = 'created_at';
             }
 
+            let backupQuery = db('backups').where('router_id', id);
+            if (search) {
+                backupQuery = backupQuery.where(function() {
+                    this.where('file_path', 'like', `%${search}%`)
+                        .orWhere('file_type', 'like', `%${search}%`);
+                });
+            }
+
+            const countRow = await backupQuery.clone().count('id as count').first();
+            const totalFilteredBackups = parseInt(countRow.count, 10) || 0;
+
             // Paginated backups for tab=backups
-            const backups = await db('backups')
-                .where('router_id', id)
+            const backups = await backupQuery.clone()
                 .orderBy(sortColumn, order)
                 .orderBy('id', order)
                 .limit(limit)
@@ -155,12 +178,13 @@ module.exports = {
                 title: `Router: ${router.name}`,
                 router,
                 tab,
-                totalBackups,
+                totalBackups: search ? totalFilteredBackups : overallTotalBackups,
+                overallTotalBackups,
                 totalSize,
                 totalSizeFormatted: retentionService.formatBytes(totalSize),
                 backups,
                 currentPage: page,
-                totalPages: Math.ceil(totalBackups / limit) || 1,
+                totalPages: Math.ceil((search ? totalFilteredBackups : overallTotalBackups) / limit) || 1,
                 templates,
                 selectedTemplateId,
                 activeTemplate,
@@ -168,7 +192,8 @@ module.exports = {
                 startTime,
                 generatedScript,
                 sort,
-                order
+                order,
+                search
             });
         } catch (err) {
             console.error('Router show error:', err);

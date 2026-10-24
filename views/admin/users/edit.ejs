@@ -9,20 +9,24 @@
 
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <form action="/admin/users/<%= targetUser.id %>?_method=PUT" method="POST">
+                <form action="/admin/users/<%= targetUser.id %>?_method=PUT" method="POST" autocomplete="off">
+                    <!-- Dummy hidden fields to prevent aggressive browser autofill -->
+                    <input type="text" style="display:none;" tabindex="-1" aria-hidden="true" autocomplete="off">
+                    <input type="password" style="display:none;" tabindex="-1" aria-hidden="true" autocomplete="new-password">
+
                     <div class="mb-3">
                         <label for="name" class="form-label fw-bold small text-dark">Nama Pengguna</label>
-                        <input type="text" class="form-control" id="name" name="name" value="<%= targetUser.name %>" required autofocus>
+                        <input type="text" class="form-control" id="name" name="name" value="<%= targetUser.name %>" autocomplete="off" required autofocus>
                     </div>
 
                     <div class="mb-3">
                         <label for="email" class="form-label fw-bold small text-dark">Alamat Email</label>
-                        <input type="email" class="form-control" id="email" name="email" value="<%= targetUser.email %>" required>
+                        <input type="email" class="form-control" id="email" name="email" value="<%= targetUser.email %>" autocomplete="off" required>
                     </div>
 
                     <div class="mb-3">
                         <label for="password" class="form-label fw-bold small text-dark">Ganti Kata Sandi (Opsional)</label>
-                        <input type="password" class="form-control" id="password" name="password" placeholder="Kosongkan jika tidak ingin mengubah password" minlength="8">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Kosongkan jika tidak ingin mengubah password" autocomplete="new-password" minlength="8">
                     </div>
 
                     <div class="mb-4">

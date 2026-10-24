@@ -9,10 +9,15 @@
 
         <div class="card shadow-sm border-0">
             <div class="card-body p-4">
-                <form action="/routers" method="POST">
+                <form action="/routers" method="POST" autocomplete="off">
+                    <!-- Dummy hidden fields to trick aggressive browser autofill -->
+                    <div style="opacity: 0; position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden; pointer-events: none;" aria-hidden="true">
+                        <input type="text" name="fake_router_name" tabindex="-1" autocomplete="off">
+                    </div>
+
                     <div class="mb-3">
                         <label for="name" class="form-label fw-bold small text-dark">Nama / Identitas Router</label>
-                        <input type="text" class="form-control" id="name" name="name" placeholder="Misal: CCR1036-Core-Pusat atau RB750Gr3-Cabang" required autofocus>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="Misal: CCR1036-Core-Pusat atau RB750Gr3-Cabang" autocomplete="off" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" required autofocus>
                         <div class="form-text small text-muted">Gunakan nama yang jelas untuk memudahkan identifikasi perangkat MikroTik Anda.</div>
                     </div>
 

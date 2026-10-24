@@ -170,26 +170,46 @@
     <% } else { %>
         <!-- RIWAYAT BACKUP TAB (DEFAULT) -->
         <div class="card shadow-sm border-0 mb-4">
+            <% 
+                const currentSort = typeof sort !== 'undefined' ? sort : 'time';
+                const currentOrder = typeof order !== 'undefined' ? order : 'desc';
+                const searchParam = typeof search !== 'undefined' && search ? '&search=' + encodeURIComponent(search) : '';
+            %>
             <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
                     <span class="fw-semibold text-dark">Berkas Backup Tersimpan</span>
                     <span class="text-muted small">&bull; <%= totalBackups %> file (<%= totalSizeFormatted %>)</span>
                 </div>
-                <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-light border text-secondary">
-                    <i class="bi bi-terminal me-1 text-primary"></i> Setup Script
-                </a>
+                <div class="d-flex align-items-center gap-2">
+                    <form method="GET" action="/routers/<%= router.id %>" class="d-flex align-items-center gap-1">
+                        <input type="hidden" name="tab" value="backups">
+                        <input type="hidden" name="sort" value="<%= currentSort %>">
+                        <input type="hidden" name="order" value="<%= currentOrder %>">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" name="search" class="form-control form-control-sm border-start-0" placeholder="Cari berkas..." value="<%= typeof search !== 'undefined' ? search : '' %>">
+                            <% if (typeof search !== 'undefined' && search) { %>
+                                <a href="/routers/<%= router.id %>?tab=backups&sort=<%= currentSort %>&order=<%= currentOrder %>" class="btn btn-outline-secondary btn-sm" title="Hapus pencarian">
+                                    <i class="bi bi-x-lg"></i>
+                                </a>
+                            <% } %>
+                            <button type="submit" class="btn btn-primary btn-sm px-2.5">Cari</button>
+                        </div>
+                    </form>
+                    <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-light border text-secondary">
+                        <i class="bi bi-terminal me-1 text-primary"></i> Setup Script
+                    </a>
+                </div>
             </div>
 
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
-                    <% 
-                        const currentSort = typeof sort !== 'undefined' ? sort : 'time';
-                        const currentOrder = typeof order !== 'undefined' ? order : 'desc';
-                    %>
                     <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
                         <tr>
                             <th class="ps-4 py-3">
-                                <a href="/routers/<%= router.id %>?tab=backups&sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %>" 
+                                <a href="/routers/<%= router.id %>?tab=backups&sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= searchParam %>" 
                                    class="text-decoration-none <%= currentSort === 'name' ? 'fw-bold text-primary' : 'text-secondary' %> d-inline-flex align-items-center gap-1.5" 
                                    title="Urutkan berdasarkan Nama Berkas">
                                     <span>Nama Berkas</span>
@@ -201,7 +221,7 @@
                                 </a>
                             </th>
                             <th class="py-3">
-                                <a href="/routers/<%= router.id %>?tab=backups&sort=type&order=<%= currentSort === 'type' && currentOrder === 'asc' ? 'desc' : 'asc' %>" 
+                                <a href="/routers/<%= router.id %>?tab=backups&sort=type&order=<%= currentSort === 'type' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= searchParam %>" 
                                    class="text-decoration-none <%= currentSort === 'type' ? 'fw-bold text-primary' : 'text-secondary' %> d-inline-flex align-items-center gap-1.5" 
                                    title="Urutkan berdasarkan Tipe File">
                                     <span>Tipe</span>
@@ -214,7 +234,7 @@
                             </th>
                             <th class="py-3 text-secondary">Ukuran</th>
                             <th class="py-3">
-                                <a href="/routers/<%= router.id %>?tab=backups&sort=time&order=<%= currentSort === 'time' && currentOrder === 'asc' ? 'desc' : 'asc' %>" 
+                                <a href="/routers/<%= router.id %>?tab=backups&sort=time&order=<%= currentSort === 'time' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= searchParam %>" 
                                    class="text-decoration-none <%= currentSort === 'time' ? 'fw-bold text-primary' : 'text-secondary' %> d-inline-flex align-items-center gap-1.5" 
                                    title="Urutkan berdasarkan Waktu Backup">
                                     <span>Waktu Backup</span>
@@ -273,12 +293,15 @@
                             <tr>
                                 <td colspan="5" class="text-center py-5 text-muted small">
                                     <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                                    Belum ada berkas backup untuk router ini.
-                                    <div class="mt-2">
+                                    <% if (typeof search !== 'undefined' && search) { %>
+                                        <p class="mb-2">Tidak ditemukan berkas backup dengan kata kunci <strong>"<%= search %>"</strong>.</p>
+                                        <a href="/routers/<%= router.id %>?tab=backups" class="btn btn-sm btn-outline-secondary">Reset Pencarian</a>
+                                    <% } else { %>
+                                        <p class="mb-2">Belum ada berkas backup untuk router ini.</p>
                                         <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-primary">
                                             Setup Script Backup Sekarang
                                         </a>
-                                    </div>
+                                    <% } %>
                                 </td>
                             </tr>
                         <% } %>
@@ -292,7 +315,7 @@
                     <ul class="pagination pagination-sm mb-0">
                         <% for (let p = 1; p <= totalPages; p++) { %>
                             <li class="page-item <%= p === currentPage ? 'active' : '' %>">
-                                <a class="page-link" href="/routers/<%= router.id %>?tab=backups&sort=<%= currentSort %>&order=<%= currentOrder %>&page=<%= p %>"><%= p %></a>
+                                <a class="page-link" href="/routers/<%= router.id %>?tab=backups&sort=<%= currentSort %>&order=<%= currentOrder %>&page=<%= p %><%= searchParam %>"><%= p %></a>
                             </li>
                         <% } %>
                     </ul>
