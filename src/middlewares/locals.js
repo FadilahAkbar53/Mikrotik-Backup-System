@@ -13,7 +13,7 @@ module.exports = (req, res, next) => {
         info: req.flash('info')
     };
     res.locals.currentPath = req.path;
-    res.locals.appName = process.env.APP_NAME || 'MikroTik Backup System';
+    res.locals.appName = process.env.APP_NAME || 'MikBack';
     res.locals.appUrl = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
     
     // Formatting helpers

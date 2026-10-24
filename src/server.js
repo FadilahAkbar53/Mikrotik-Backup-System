@@ -29,12 +29,10 @@ app.set('view engine', 'ejs');
 app.use(expressLayouts);
 app.set('layout', 'layout');
 
-// Favicon handler: redirect if opened directly in address bar, or return 204 No Content for asset requests
+// Favicon handler
 app.get('/favicon.ico', (req, res) => {
-    if (req.headers.accept && req.headers.accept.includes('text/html')) {
-        return res.redirect('/');
-    }
-    return res.status(204).end();
+    res.type('image/svg+xml');
+    return res.sendFile(path.join(__dirname, '../public/icon-MikBack.svg'));
 });
 
 // Static files

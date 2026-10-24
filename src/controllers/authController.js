@@ -98,7 +98,7 @@ module.exports = {
                 role: newUser.role
             };
 
-            req.flash('success', 'Akun berhasil didaftarkan! Selamat datang di MikroTik Backup System.');
+            req.flash('success', 'Akun berhasil didaftarkan! Selamat datang di MikBack!');
             return res.redirect('/dashboard');
         } catch (err) {
             console.error('Register error:', err);
