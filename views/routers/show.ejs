@@ -65,6 +65,12 @@
             <span>API & Integrasi</span>
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link <%= tab === 'reports' ? 'active' : '' %> fw-semibold px-3 py-2.5 d-inline-flex align-items-center gap-2" href="/routers/<%= router.id %>?tab=reports">
+            <i class="bi bi-receipt-cutoff text-success"></i>
+            <span>Laporan Voucher</span>
+        </a>
+    </li>
 </ul>
 
 <!-- Tab Contents -->
@@ -165,6 +171,425 @@
   -F "file=@backup.rsc"</code></pre>
                 </div>
             </div>
+        </div>
+
+    <% } else if (tab === 'reports' && reportData) { %>
+        <!-- HOTSPOT VOUCHER REPORT TAB -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+            <div>
+                <h5 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-receipt-cutoff text-success"></i>
+                    <span>Laporan Voucher Hotspot: <%= router.name %></span>
+                </h5>
+                <p class="text-muted small mb-0">Diekstrak secara otomatis dari script Mikhmon pada berkas backup .rsc</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form action="/reports/<%= router.id %>/sync" method="POST" class="m-0" id="syncReportForm">
+                    <button type="submit" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm" id="btnSyncReport" title="Pindai seluruh berkas .rsc untuk melengkapi tanggal yang terlewat tanpa duplikasi">
+                        <i class="bi bi-arrow-repeat" id="syncIcon"></i> Sinkronkan Riwayat .RSC
+                    </button>
+                </form>
+                <a href="/reports?router_id=<%= router.id %>" class="btn btn-sm btn-primary shadow-sm">
+                    <i class="bi bi-arrows-fullscreen me-1"></i> Buka Halaman Laporan Penuh
+                </a>
+            </div>
+        </div>
+
+        <% if (reportData.summary.totalVouchers === 0) { %>
+            <div class="alert alert-info border-0 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-info-circle-fill fs-5"></i>
+                    <div>
+                        <strong>Belum Ada Data Voucher Hotspot untuk Router Ini</strong>
+                        <div class="small text-muted">Laporan voucher diambil dari script Mikhmon (<code>comment=mikhmon</code>) pada backup <strong>.rsc</strong>.</div>
+                    </div>
+                </div>
+                <form action="/reports/<%= router.id %>/sync" method="POST" class="m-0">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> Sinkronkan Sekarang
+                    </button>
+                </form>
+            </div>
+        <% } %>
+
+        <!-- Filter Bar -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-3">
+                <form method="GET" action="/routers/<%= router.id %>" class="row g-2 align-items-center">
+                    <input type="hidden" name="tab" value="reports">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Periode Bulan</label>
+                        <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">Semua Bulan (Keseluruhan)</option>
+                            <% reportData.availableMonths.forEach(function(m) { %>
+                                <option value="<%= m.value %>" <%= reportData.filters.month === m.value ? 'selected' : '' %>>
+                                    <%= m.label %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Profil Voucher</label>
+                        <select name="profile" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">Semua Profil</option>
+                            <% reportData.availableProfiles.forEach(function(p) { %>
+                                <option value="<%= p %>" <%= reportData.filters.profile === p ? 'selected' : '' %>>
+                                    <%= p %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Pencarian Voucher</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="report_search" class="form-control" placeholder="Kode, IP, MAC, komentar..." value="<%= reportData.filters.search || '' %>">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Cari</button>
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end pt-3 pt-md-0">
+                        <% if (reportData.filters.month || reportData.filters.profile || reportData.filters.search) { %>
+                            <a href="/routers/<%= router.id %>?tab=reports" class="btn btn-sm btn-outline-danger w-100" title="Reset Filter">
+                                <i class="bi bi-x-circle me-1"></i> Reset
+                            </a>
+                        <% } else { %>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="bi bi-funnel me-1"></i> Terapkan
+                            </button>
+                        <% } %>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 4 KPI Stat Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase">Total Omset</span>
+                            <span class="badge bg-success-subtle text-success p-2 rounded-circle">
+                                <i class="bi bi-cash-stack fs-5"></i>
+                            </span>
+                        </div>
+                        <h4 class="fw-bold mb-1 text-dark"><%= reportData.summary.totalRevenueFormatted %></h4>
+                        <div class="text-muted small">
+                            <%= reportData.filters.month ? 'Periode ' + reportData.filters.month : 'Akumulasi Keseluruhan' %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase">Voucher Terjual</span>
+                            <span class="badge bg-primary-subtle text-primary p-2 rounded-circle">
+                                <i class="bi bi-ticket-perforated-fill fs-5"></i>
+                            </span>
+                        </div>
+                        <h4 class="fw-bold mb-1 text-dark"><%= (reportData.summary.totalVouchers || 0).toLocaleString('id-ID') %> <span class="fs-6 fw-normal text-muted">lembar</span></h4>
+                        <div class="text-muted small">
+                            Dari <strong><%= reportData.summary.totalProfiles %> Profil</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase">Rata-rata Harian</span>
+                            <span class="badge bg-info-subtle text-info p-2 rounded-circle">
+                                <i class="bi bi-graph-up-arrow fs-5"></i>
+                            </span>
+                        </div>
+                        <h4 class="fw-bold mb-1 text-dark"><%= reportData.summary.avgDailyRevenueFormatted %></h4>
+                        <div class="text-muted small">
+                            Dari <strong><%= reportData.summary.activeDays %> hari aktif</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase">Rentang Penjualan</span>
+                            <span class="badge bg-warning-subtle text-warning p-2 rounded-circle">
+                                <i class="bi bi-calendar-range fs-5"></i>
+                            </span>
+                        </div>
+                        <h6 class="fw-bold mb-1 text-dark">
+                            <%= reportData.summary.firstSale && reportData.summary.lastSale ? reportData.summary.firstSale + ' s/d ' + reportData.summary.lastSale : '-' %>
+                        </h6>
+                        <div class="text-muted small">
+                            Total Profil: <strong><%= reportData.availableProfiles.length %></strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Breakdown -->
+        <div class="row g-4 mb-4">
+            <!-- Left: Akumulasi Per Profil -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-pie-chart-fill text-warning fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-dark">Akumulasi Per Profil</h5>
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary rounded-pill"><%= reportData.profileBreakdown.length %> Profil</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr class="text-uppercase small text-muted">
+                                    <th>Profil Voucher</th>
+                                    <th class="text-center">Terjual</th>
+                                    <th class="text-end">Total Omset</th>
+                                    <th class="text-center">Kontribusi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (reportData.profileBreakdown && reportData.profileBreakdown.length > 0) { %>
+                                    <% reportData.profileBreakdown.forEach(function(item) { %>
+                                        <tr>
+                                            <td>
+                                                <a href="/routers/<%= router.id %>?tab=reports&profile=<%= encodeURIComponent(item.profile) %>" class="fw-bold text-decoration-none text-dark d-block">
+                                                    <%= item.profile %>
+                                                </a>
+                                                <span class="text-muted" style="font-size: 0.75rem;">Rata-rata: <%= item.avgPriceFormatted %></span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-light text-dark border px-2 py-1"><%= item.totalVouchers.toLocaleString('id-ID') %></span>
+                                            </td>
+                                            <td class="text-end fw-bold text-success">
+                                                <%= item.totalRevenueFormatted %>
+                                            </td>
+                                            <td class="text-center" style="min-width: 120px;">
+                                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                                        <div class="progress-bar bg-primary" role="progressbar" style="width: <%= item.percentage %>%"></div>
+                                                    </div>
+                                                    <span class="small fw-semibold text-muted" style="font-size: 0.75rem; min-width: 35px;"><%= item.percentage %>%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">Tidak ada data profil.</td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Akumulasi Per Bulan & Per Tanggal -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white py-2 px-3">
+                        <ul class="nav nav-pills card-header-pills" id="breakdownPillsTab" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active py-1.5 px-3 small fw-semibold" id="tab-month-tab-btn" data-bs-toggle="pill" data-bs-target="#tab-month-tab" type="button">
+                                    <i class="bi bi-calendar3 me-1"></i> Per Bulan
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link py-1.5 px-3 small fw-semibold" id="tab-daily-tab-btn" data-bs-toggle="pill" data-bs-target="#tab-daily-tab" type="button">
+                                    <i class="bi bi-calendar-date me-1"></i> Per Tanggal
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="tab-content" id="breakdownPillsContent">
+                            <div class="tab-pane fade show active" id="tab-month-tab" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr class="text-uppercase small text-muted">
+                                                <th>Bulan</th>
+                                                <th class="text-center">Hari Aktif</th>
+                                                <th class="text-center">Terjual</th>
+                                                <th class="text-end">Total Omset</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (reportData.monthlyBreakdown && reportData.monthlyBreakdown.length > 0) { %>
+                                                <% reportData.monthlyBreakdown.forEach(function(m) { %>
+                                                    <tr>
+                                                        <td>
+                                                            <a href="/routers/<%= router.id %>?tab=reports&month=<%= m.saleMonth %>" class="fw-bold text-decoration-none text-primary">
+                                                                <%= m.monthName %>
+                                                            </a>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge bg-light text-muted border"><%= m.activeDays %> hari</span>
+                                                        </td>
+                                                        <td class="text-center fw-semibold">
+                                                            <%= m.totalVouchers.toLocaleString('id-ID') %>
+                                                        </td>
+                                                        <td class="text-end fw-bold text-success">
+                                                            <%= m.totalRevenueFormatted %>
+                                                        </td>
+                                                    </tr>
+                                                <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="4" class="text-center py-4 text-muted">Belum ada data bulanan.</td>
+                                                </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="tab-daily-tab" role="tabpanel">
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr class="text-uppercase small text-muted">
+                                                <th>Tanggal</th>
+                                                <th class="text-center">Terjual</th>
+                                                <th class="text-end">Omset Harian</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (reportData.dailyBreakdown && reportData.dailyBreakdown.length > 0) { %>
+                                                <% reportData.dailyBreakdown.forEach(function(d) { %>
+                                                    <tr>
+                                                        <td class="fw-semibold">
+                                                            <i class="bi bi-calendar-event text-secondary me-1"></i> <%= d.saleDate %>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge bg-light text-dark border px-2 py-1"><%= d.totalVouchers.toLocaleString('id-ID') %></span>
+                                                        </td>
+                                                        <td class="text-end fw-bold text-success">
+                                                            <%= d.totalRevenueFormatted %>
+                                                        </td>
+                                                    </tr>
+                                                <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="3" class="text-center py-4 text-muted">Belum ada data harian.</td>
+                                                </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Transaksi Voucher Section -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-list-check text-info fs-5"></i>
+                    <h5 class="fw-bold mb-0 text-dark">Rincian Transaksi Voucher Hotspot</h5>
+                </div>
+                <span class="badge bg-secondary-subtle text-dark px-2.5 py-1">Total <%= (reportData.totalTransactions || 0).toLocaleString('id-ID') %> Voucher Terdata</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.875rem;">
+                    <thead class="table-light">
+                        <tr class="text-uppercase small text-muted">
+                            <th style="width: 50px;">No</th>
+                            <th>Waktu Transaksi</th>
+                            <th>Kode Voucher / User</th>
+                            <th>Profil</th>
+                            <th class="text-end">Harga</th>
+                            <th>Masa Aktif</th>
+                            <th>IP & MAC Address</th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (reportData.transactions && reportData.transactions.length > 0) { %>
+                            <% reportData.transactions.forEach(function(t, idx) { %>
+                                <tr>
+                                    <td class="text-muted"><%= ((reportData.currentPage - 1) * 15) + idx + 1 %></td>
+                                    <td>
+                                        <div class="fw-semibold text-dark"><%= t.sale_date %></div>
+                                        <span class="text-muted" style="font-size: 0.75rem;"><%= t.sale_time %></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-primary border font-monospace px-2 py-1 fs-6">
+                                            <%= t.voucher_code %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info-emphasis px-2 py-1">
+                                            <%= t.profile %>
+                                        </span>
+                                    </td>
+                                    <td class="text-end fw-bold text-success">
+                                        <%= t.priceFormatted %>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted"><i class="bi bi-clock me-1"></i><%= t.validity || '-' %></span>
+                                    </td>
+                                    <td>
+                                        <div class="font-monospace text-dark" style="font-size: 0.8rem;"><%= t.ip_address || '-' %></div>
+                                        <div class="font-monospace text-muted" style="font-size: 0.75rem;"><%= t.mac_address || '-' %></div>
+                                    </td>
+                                    <td class="text-truncate text-muted" style="max-width: 180px;" title="<%= t.comment || '' %>">
+                                        <%= t.comment || '-' %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="bi bi-receipt fs-2 text-secondary opacity-50 d-block mb-2"></i>
+                                    Tidak ada transaksi voucher yang sesuai dengan kriteria filter.
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <% if (reportData.totalPages > 1) { %>
+                <div class="card-footer bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="text-muted small">
+                        Halaman <strong><%= reportData.currentPage %></strong> dari <strong><%= reportData.totalPages %></strong> (<%= reportData.totalTransactions.toLocaleString('id-ID') %> voucher)
+                    </div>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item <%= reportData.currentPage <= 1 ? 'disabled' : '' %>">
+                                <a class="page-link" href="/routers/<%= router.id %>?tab=reports&month=<%= reportData.filters.month %>&profile=<%= encodeURIComponent(reportData.filters.profile) %>&report_search=<%= encodeURIComponent(reportData.filters.search) %>&report_page=<%= reportData.currentPage - 1 %>">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            <% 
+                                const startP = Math.max(1, reportData.currentPage - 2);
+                                const endP = Math.min(reportData.totalPages, reportData.currentPage + 2);
+                                for (let p = startP; p <= endP; p++) { 
+                            %>
+                                <li class="page-item <%= p === reportData.currentPage ? 'active' : '' %>">
+                                    <a class="page-link" href="/routers/<%= router.id %>?tab=reports&month=<%= reportData.filters.month %>&profile=<%= encodeURIComponent(reportData.filters.profile) %>&report_search=<%= encodeURIComponent(reportData.filters.search) %>&report_page=<%= p %>">
+                                        <%= p %>
+                                    </a>
+                                </li>
+                            <% } %>
+                            <li class="page-item <%= reportData.currentPage >= reportData.totalPages ? 'disabled' : '' %>">
+                                <a class="page-link" href="/routers/<%= router.id %>?tab=reports&month=<%= reportData.filters.month %>&profile=<%= encodeURIComponent(reportData.filters.profile) %>&report_search=<%= encodeURIComponent(reportData.filters.search) %>&report_page=<%= reportData.currentPage + 1 %>">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            <% } %>
         </div>
 
     <% } else { %>

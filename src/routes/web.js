@@ -10,6 +10,7 @@ const backupController = require('../controllers/backupController');
 const adminUserController = require('../controllers/adminUserController');
 const adminScriptTemplateController = require('../controllers/adminScriptTemplateController');
 const adminRetentionController = require('../controllers/adminRetentionController');
+const reportController = require('../controllers/reportController');
 
 // Root redirect
 router.get('/', (req, res) => {
@@ -43,6 +44,10 @@ router.get('/routers/:id/edit', routerController.edit);
 router.put('/routers/:id', routerController.update);
 router.delete('/routers/:id', routerController.destroy);
 router.post('/routers/:id/regenerate-token', routerController.regenerateToken);
+
+// Hotspot Voucher Reports
+router.get('/reports', reportController.index);
+router.post('/reports/:routerId/sync', reportController.sync);
 
 // Secure Backup Download, Preview & Management
 router.get('/backup/download/:backup_id', backupController.download);

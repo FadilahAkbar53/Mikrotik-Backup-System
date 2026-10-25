@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const dayjs = require('dayjs');
 const db = require('../config/database');
 const retentionService = require('./retentionService');
+const voucherReportService = require('./voucherReportService');
 
 function slugify(text) {
     return text.toString().toLowerCase()
@@ -246,6 +247,13 @@ class BackupQueueService {
         const descriptorPath = path.join(this.pendingDir, `${job.jobId}.json`);
         if (fs.existsSync(descriptorPath)) {
             fs.unlinkSync(descriptorPath);
+        }
+
+        // 4. Auto-sync Hotspot Voucher Report if RSC file
+        if (job.type === 'rsc') {
+            voucherReportService.syncFromRscFile(job.routerId, finalDestPath).catch(syncErr => {
+                console.warn(`[VoucherReport AutoSync] Error syncing vouchers for router ${job.routerId}:`, syncErr.message);
+            });
         }
 
         console.log(`[BackupQueue] Completed job ${job.jobId} -> ${relativeSavedPath} (${finalSize} bytes). Remaining in queue: ${this.queue.length}`);

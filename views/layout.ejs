@@ -368,6 +368,10 @@
                     <i class="bi bi-plus-circle-fill"></i>
                     <span class="nav-text">Tambah Router</span>
                 </a>
+                <a href="/reports" class="nav-link-custom <%= currentPath.startsWith('/reports') ? 'active' : '' %>" data-menu-title="Laporan Voucher">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span class="nav-text">Laporan Voucher</span>
+                </a>
 
                 <div class="sidebar-heading mt-3">Administrasi Sistem</div>
                 <a href="/admin/users" class="nav-link-custom <%= currentPath.startsWith('/admin/users') && currentPath !== '/admin/users/create' ? 'active' : '' %>" data-menu-title="Kelola Pengguna">
@@ -399,6 +403,10 @@
                 <a href="/routers/create" class="nav-link-custom <%= currentPath === '/routers/create' ? 'active' : '' %>" data-menu-title="Tambah Router Baru">
                     <i class="bi bi-plus-circle-fill"></i>
                     <span class="nav-text">Tambah Router Baru</span>
+                </a>
+                <a href="/reports" class="nav-link-custom <%= currentPath.startsWith('/reports') ? 'active' : '' %>" data-menu-title="Laporan Voucher">
+                    <i class="bi bi-receipt-cutoff"></i>
+                    <span class="nav-text">Laporan Voucher</span>
                 </a>
             <% } %>
         </div>

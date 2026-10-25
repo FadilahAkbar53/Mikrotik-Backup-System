@@ -1,0 +1,642 @@
+<%- contentFor ? contentFor('body') : '' %>
+
+<div class="container-fluid px-0">
+    <!-- Top Header & Router Switcher -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success-subtle text-success p-2 rounded-3">
+                    <i class="bi bi-receipt-cutoff fs-4"></i>
+                </span>
+                <div>
+                    <h3 class="fw-bold mb-0 text-dark">Laporan Penjualan Voucher Hotspot</h3>
+                    <p class="text-muted small mb-0">Rekapitulasi omset, performa profil voucher, dan riwayat transaksi dari backup konfigurasi (.rsc)</p>
+                </div>
+            </div>
+        </div>
+
+        <% if (selectedRouter) { %>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <!-- Router Selector -->
+                <% if (routers && routers.length > 1) { %>
+                    <div class="input-group input-group-sm" style="min-width: 220px;">
+                        <span class="input-group-text bg-white text-muted"><i class="bi bi-router"></i></span>
+                        <select class="form-select form-select-sm fw-semibold" onchange="window.location.href='/reports?router_id=' + this.value">
+                            <% routers.forEach(function(r) { %>
+                                <option value="<%= r.id %>" <%= r.id === selectedRouterId ? 'selected' : '' %>>
+                                    <%= r.name %> (<%= r.owner_name || 'Tenant' %>)
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+                <% } %>
+
+                <!-- Manual Sync Button -->
+                <form action="/reports/<%= selectedRouterId %>/sync" method="POST" class="m-0" id="syncReportForm">
+                    <button type="submit" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm" id="btnSyncReport" title="Pindai seluruh berkas .rsc untuk melengkapi tanggal yang terlewat tanpa duplikasi">
+                        <i class="bi bi-arrow-repeat" id="syncIcon"></i>
+                        <span>Sinkronkan Riwayat .RSC</span>
+                    </button>
+                </form>
+
+                <a href="/routers/<%= selectedRouterId %>" class="btn btn-sm btn-light border text-secondary shadow-sm">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Detail Router
+                </a>
+            </div>
+        <% } %>
+    </div>
+
+    <% if (!selectedRouter) { %>
+        <!-- Empty State (No Routers Available) -->
+        <div class="card shadow-sm border-0 text-center py-5">
+            <div class="card-body">
+                <div class="text-muted mb-3">
+                    <i class="bi bi-router fs-1 text-secondary opacity-50"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Belum Ada Router Tersedia</h5>
+                <p class="text-muted small mb-4">Tambahkan router MikroTik terlebih dahulu untuk mengumpulkan file backup dan membuat laporan voucher.</p>
+                <a href="/routers/create" class="btn btn-primary btn-sm px-4">
+                    <i class="bi bi-plus-circle me-1"></i> Tambah Router Baru
+                </a>
+            </div>
+        </div>
+    <% } else { %>
+        <!-- Router Info Banner if no data yet -->
+        <% if (summary.totalVouchers === 0) { %>
+            <div class="alert alert-info border-0 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-info-circle-fill fs-5"></i>
+                    <div>
+                        <strong>Belum Ada Data Voucher Hotspot untuk Router "<%= selectedRouter.name %>"</strong>
+                        <div class="small text-muted">Data laporan voucher otomatis diekstrak dari baris script Mikhmon (<code>/system script comment=mikhmon</code>) pada file backup <strong>.rsc</strong> router ini.</div>
+                    </div>
+                </div>
+                <form action="/reports/<%= selectedRouterId %>/sync" method="POST" class="m-0">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> Jalankan Ekstraksi Sekarang
+                    </button>
+                </form>
+            </div>
+        <% } %>
+
+        <!-- Filter Bar -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-3">
+                <form method="GET" action="/reports" class="row g-2 align-items-center">
+                    <input type="hidden" name="router_id" value="<%= selectedRouterId %>">
+                    
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Periode Bulan</label>
+                        <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">Semua Bulan (Keseluruhan)</option>
+                            <% availableMonths.forEach(function(m) { %>
+                                <option value="<%= m.value %>" <%= filters.month === m.value ? 'selected' : '' %>>
+                                    <%= m.label %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Profil Voucher</label>
+                        <select name="profile" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">Semua Profil Voucher</option>
+                            <% availableProfiles.forEach(function(p) { %>
+                                <option value="<%= p %>" <%= filters.profile === p ? 'selected' : '' %>>
+                                    <%= p %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted mb-1">Pencarian Voucher</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="search" class="form-control" placeholder="Kode voucher, IP, MAC, komentar..." value="<%= filters.search || '' %>">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Cari</button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-end pt-3 pt-md-0">
+                        <% if (filters.month || filters.profile || filters.search) { %>
+                            <a href="/reports?router_id=<%= selectedRouterId %>" class="btn btn-sm btn-outline-danger w-100" title="Hapus Semua Filter">
+                                <i class="bi bi-x-circle me-1"></i> Reset Filter
+                            </a>
+                        <% } else { %>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="bi bi-funnel me-1"></i> Terapkan
+                            </button>
+                        <% } %>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 4 KPI Stat Cards -->
+        <div class="row g-3 mb-4">
+            <!-- Total Omset -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase tracking-wider">Total Omset</span>
+                            <span class="badge bg-success-subtle text-success p-2 rounded-circle">
+                                <i class="bi bi-cash-stack fs-5"></i>
+                            </span>
+                        </div>
+                        <h4 class="fw-bold mb-1 text-dark"><%= summary.totalRevenueFormatted %></h4>
+                        <div class="text-muted small">
+                            <% if (filters.month) { %>
+                                Periode: <strong><%= filters.month %></strong>
+                            <% } else { %>
+                                Akumulasi Keseluruhan
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Voucher Terjual -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase tracking-wider">Voucher Terjual</span>
+                            <span class="badge bg-primary-subtle text-primary p-2 rounded-circle">
+                                <i class="bi bi-ticket-perforated-fill fs-5"></i>
+                            </span>
+                        </div>
+                        <h4 class="fw-bold mb-1 text-dark"><%= (summary.totalVouchers || 0).toLocaleString('id-ID') %> <span class="fs-6 fw-normal text-muted">lembar</span></h4>
+                        <div class="text-muted small">
+                            Dari <strong><%= summary.totalProfiles %> Profil</strong> Berbeda
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rata-rata Omset Harian -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase tracking-wider">Rata-rata Harian</span>
+                            <span class="badge bg-info-subtle text-info p-2 rounded-circle">
+                                <i class="bi bi-graph-up-arrow fs-5"></i>
+                            </span>
+                        </div>
+                        <h4 class="fw-bold mb-1 text-dark"><%= summary.avgDailyRevenueFormatted %></h4>
+                        <div class="text-muted small">
+                            Berdasarkan <strong><%= summary.activeDays %> hari aktif</strong> penjualan
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Periode Penjualan -->
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="text-muted small fw-semibold text-uppercase tracking-wider">Rentang Waktu</span>
+                            <span class="badge bg-warning-subtle text-warning p-2 rounded-circle">
+                                <i class="bi bi-calendar-range fs-5"></i>
+                            </span>
+                        </div>
+                        <h6 class="fw-bold mb-1 text-dark">
+                            <% if (summary.firstSale && summary.lastSale) { %>
+                                <%= summary.firstSale %> s/d <%= summary.lastSale %>
+                            <% } else { %>
+                                -
+                            <% } %>
+                        </h6>
+                        <div class="text-muted small">
+                            Router: <strong><%= selectedRouter.name %></strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trend Chart Section -->
+        <% if (monthlyBreakdown && monthlyBreakdown.length > 0) { %>
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-bar-chart-line-fill text-primary fs-5"></i>
+                        <h5 class="fw-bold mb-0 text-dark">Tren Penjualan Hotspot (Per Bulan)</h5>
+                    </div>
+                    <span class="badge bg-light text-muted border px-2.5 py-1">Omset & Volume Voucher</span>
+                </div>
+                <div class="card-body p-4">
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="monthlyTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        <% } %>
+
+        <!-- Two Column Breakdown: Per Profile & Per Bulan/Tanggal -->
+        <div class="row g-4 mb-4">
+            <!-- Left Column: Akumulasi Per Profil Voucher -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-pie-chart-fill text-warning fs-5"></i>
+                            <h5 class="fw-bold mb-0 text-dark">Akumulasi Per Profil Voucher</h5>
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary rounded-pill"><%= profileBreakdown.length %> Profil</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr class="text-uppercase small text-muted">
+                                    <th>Profil Voucher</th>
+                                    <th class="text-center">Terjual</th>
+                                    <th class="text-end">Total Omset</th>
+                                    <th class="text-center">Kontribusi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (profileBreakdown && profileBreakdown.length > 0) { %>
+                                    <% profileBreakdown.forEach(function(item) { %>
+                                        <tr>
+                                            <td>
+                                                <a href="/reports?router_id=<%= selectedRouterId %>&profile=<%= encodeURIComponent(item.profile) %>" class="fw-bold text-decoration-none text-dark d-block">
+                                                    <%= item.profile %>
+                                                </a>
+                                                <span class="text-muted" style="font-size: 0.75rem;">Rata-rata: <%= item.avgPriceFormatted %></span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-light text-dark border px-2 py-1"><%= item.totalVouchers.toLocaleString('id-ID') %></span>
+                                            </td>
+                                            <td class="text-end fw-bold text-success">
+                                                <%= item.totalRevenueFormatted %>
+                                            </td>
+                                            <td class="text-center" style="min-width: 120px;">
+                                                <div class="d-flex align-items-center justify-content-center gap-2">
+                                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                                        <div class="progress-bar bg-primary" role="progressbar" style="width: <%= item.percentage %>%" aria-valuenow="<%= item.percentage %>" aria-valuemin="0" aria-valuemax="100"></div>
+                                                    </div>
+                                                    <span class="small fw-semibold text-muted" style="font-size: 0.75rem; min-width: 35px;"><%= item.percentage %>%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } else { %>
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">
+                                            Tidak ada data profil untuk filter yang dipilih.
+                                        </td>
+                                    </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Akumulasi Per Bulan & Per Tanggal -->
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white py-2 px-3">
+                        <ul class="nav nav-pills card-header-pills" id="breakdownPills" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active py-1.5 px-3 small fw-semibold" id="tab-month-btn" data-bs-toggle="pill" data-bs-target="#tab-month" type="button">
+                                    <i class="bi bi-calendar3 me-1"></i> Per Bulan
+                                </button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link py-1.5 px-3 small fw-semibold" id="tab-daily-btn" data-bs-toggle="pill" data-bs-target="#tab-daily" type="button">
+                                    <i class="bi bi-calendar-date me-1"></i> Per Tanggal
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="tab-content" id="breakdownTabContent">
+                            <!-- TAB: PER BULAN -->
+                            <div class="tab-pane fade show active" id="tab-month" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr class="text-uppercase small text-muted">
+                                                <th>Bulan</th>
+                                                <th class="text-center">Hari Aktif</th>
+                                                <th class="text-center">Terjual</th>
+                                                <th class="text-end">Total Omset</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (monthlyBreakdown && monthlyBreakdown.length > 0) { %>
+                                                <% monthlyBreakdown.forEach(function(m) { %>
+                                                    <tr>
+                                                        <td>
+                                                            <a href="/reports?router_id=<%= selectedRouterId %>&month=<%= m.saleMonth %>" class="fw-bold text-decoration-none text-primary">
+                                                                <%= m.monthName %>
+                                                            </a>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge bg-light text-muted border"><%= m.activeDays %> hari</span>
+                                                        </td>
+                                                        <td class="text-center fw-semibold">
+                                                            <%= m.totalVouchers.toLocaleString('id-ID') %>
+                                                        </td>
+                                                        <td class="text-end fw-bold text-success">
+                                                            <%= m.totalRevenueFormatted %>
+                                                        </td>
+                                                    </tr>
+                                                <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="4" class="text-center py-4 text-muted">Belum ada data bulanan.</td>
+                                                </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- TAB: PER TANGGAL -->
+                            <div class="tab-pane fade" id="tab-daily" role="tabpanel">
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr class="text-uppercase small text-muted">
+                                                <th>Tanggal</th>
+                                                <th class="text-center">Terjual</th>
+                                                <th class="text-end">Omset Harian</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (dailyBreakdown && dailyBreakdown.length > 0) { %>
+                                                <% dailyBreakdown.forEach(function(d) { %>
+                                                    <tr>
+                                                        <td class="fw-semibold">
+                                                            <i class="bi bi-calendar-event text-secondary me-1"></i> <%= d.saleDate %>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <span class="badge bg-light text-dark border px-2 py-1"><%= d.totalVouchers.toLocaleString('id-ID') %></span>
+                                                        </td>
+                                                        <td class="text-end fw-bold text-success">
+                                                            <%= d.totalRevenueFormatted %>
+                                                        </td>
+                                                    </tr>
+                                                <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="3" class="text-center py-4 text-muted">Belum ada data harian.</td>
+                                                </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Transaksi Voucher Section -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-list-check text-info fs-5"></i>
+                    <h5 class="fw-bold mb-0 text-dark">Rincian Transaksi Voucher Hotspot</h5>
+                </div>
+                <span class="badge bg-secondary-subtle text-dark px-2.5 py-1">Total <%= (totalTransactions || 0).toLocaleString('id-ID') %> Voucher Terdata</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size: 0.875rem;">
+                    <thead class="table-light">
+                        <tr class="text-uppercase small text-muted">
+                            <th style="width: 50px;">No</th>
+                            <th>Waktu Transaksi</th>
+                            <th>Kode Voucher / User</th>
+                            <th>Profil</th>
+                            <th class="text-end">Harga</th>
+                            <th>Masa Aktif</th>
+                            <th>IP & MAC Address</th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (transactions && transactions.length > 0) { %>
+                            <% transactions.forEach(function(t, idx) { %>
+                                <tr>
+                                    <td class="text-muted"><%= ((currentPage - 1) * 20) + idx + 1 %></td>
+                                    <td>
+                                        <div class="fw-semibold text-dark"><%= t.sale_date %></div>
+                                        <span class="text-muted" style="font-size: 0.75rem;"><%= t.sale_time %></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-primary border font-monospace px-2 py-1 fs-6">
+                                            <%= t.voucher_code %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info-emphasis px-2 py-1">
+                                            <%= t.profile %>
+                                        </span>
+                                    </td>
+                                    <td class="text-end fw-bold text-success">
+                                        <%= t.priceFormatted %>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted"><i class="bi bi-clock me-1"></i><%= t.validity || '-' %></span>
+                                    </td>
+                                    <td>
+                                        <div class="font-monospace text-dark" style="font-size: 0.8rem;"><%= t.ip_address || '-' %></div>
+                                        <div class="font-monospace text-muted" style="font-size: 0.75rem;"><%= t.mac_address || '-' %></div>
+                                    </td>
+                                    <td class="text-truncate text-muted" style="max-width: 180px;" title="<%= t.comment || '' %>">
+                                        <%= t.comment || '-' %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="bi bi-receipt fs-2 text-secondary opacity-50 d-block mb-2"></i>
+                                    Tidak ada transaksi voucher yang sesuai dengan kriteria filter.
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <% if (totalPages > 1) { %>
+                <div class="card-footer bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="text-muted small">
+                        Halaman <strong><%= currentPage %></strong> dari <strong><%= totalPages %></strong> (<%= totalTransactions.toLocaleString('id-ID') %> voucher)
+                    </div>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm mb-0">
+                            <!-- First & Previous -->
+                            <li class="page-item <%= currentPage <= 1 ? 'disabled' : '' %>">
+                                <a class="page-link" href="/reports?router_id=<%= selectedRouterId %>&month=<%= filters.month %>&profile=<%= encodeURIComponent(filters.profile) %>&search=<%= encodeURIComponent(filters.search) %>&page=1">
+                                    <i class="bi bi-chevron-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item <%= currentPage <= 1 ? 'disabled' : '' %>">
+                                <a class="page-link" href="/reports?router_id=<%= selectedRouterId %>&month=<%= filters.month %>&profile=<%= encodeURIComponent(filters.profile) %>&search=<%= encodeURIComponent(filters.search) %>&page=<%= currentPage - 1 %>">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+
+                            <!-- Visible Page Numbers -->
+                            <% 
+                                const startP = Math.max(1, currentPage - 2);
+                                const endP = Math.min(totalPages, currentPage + 2);
+                                for (let p = startP; p <= endP; p++) { 
+                            %>
+                                <li class="page-item <%= p === currentPage ? 'active' : '' %>">
+                                    <a class="page-link" href="/reports?router_id=<%= selectedRouterId %>&month=<%= filters.month %>&profile=<%= encodeURIComponent(filters.profile) %>&search=<%= encodeURIComponent(filters.search) %>&page=<%= p %>">
+                                        <%= p %>
+                                    </a>
+                                </li>
+                            <% } %>
+
+                            <!-- Next & Last -->
+                            <li class="page-item <%= currentPage >= totalPages ? 'disabled' : '' %>">
+                                <a class="page-link" href="/reports?router_id=<%= selectedRouterId %>&month=<%= filters.month %>&profile=<%= encodeURIComponent(filters.profile) %>&search=<%= encodeURIComponent(filters.search) %>&page=<%= currentPage + 1 %>">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item <%= currentPage >= totalPages ? 'disabled' : '' %>">
+                                <a class="page-link" href="/reports?router_id=<%= selectedRouterId %>&month=<%= filters.month %>&profile=<%= encodeURIComponent(filters.profile) %>&search=<%= encodeURIComponent(filters.search) %>&page=<%= totalPages %>">
+                                    <i class="bi bi-chevron-double-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            <% } %>
+        </div>
+    <% } %>
+</div>
+
+<!-- Chart.js and Sync Button Spinner Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sync button loading state
+        const syncForm = document.getElementById('syncReportForm');
+        if (syncForm) {
+            syncForm.addEventListener('submit', function() {
+                const btn = document.getElementById('btnSyncReport');
+                const icon = document.getElementById('syncIcon');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sinkronisasi...';
+                }
+            });
+        }
+
+        // Render Monthly Trend Chart
+        const chartCanvas = document.getElementById('monthlyTrendChart');
+        if (chartCanvas) {
+            const rawMonthly = <%- JSON.stringify(monthlyBreakdown || []) %>;
+            // Reverse so earliest month is on left, latest on right
+            const sortedMonthly = rawMonthly.slice().reverse();
+
+            const labels = sortedMonthly.map(item => item.monthName);
+            const revenues = sortedMonthly.map(item => item.totalRevenue);
+            const vouchers = sortedMonthly.map(item => item.totalVouchers);
+
+            new Chart(chartCanvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Total Omset (Rp)',
+                            data: revenues,
+                            backgroundColor: 'rgba(14, 165, 233, 0.85)',
+                            borderColor: '#0284c7',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Jumlah Voucher (Lembar)',
+                            data: vouchers,
+                            type: 'line',
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#10b981',
+                            pointRadius: 4,
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { family: 'Inter', size: 12 },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.yAxisID === 'y') {
+                                        return 'Omset: Rp ' + Number(context.parsed.y).toLocaleString('id-ID');
+                                    } else {
+                                        return 'Voucher: ' + Number(context.parsed.y).toLocaleString('id-ID') + ' lembar';
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Inter', size: 11 } }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 1000000) return 'Rp ' + (value / 1000000).toFixed(0) + 'jt';
+                                    if (value >= 1000) return 'Rp ' + (value / 1000).toFixed(0) + 'rb';
+                                    return 'Rp ' + value;
+                                },
+                                font: { family: 'Inter', size: 11 }
+                            },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('id-ID');
+                                },
+                                font: { family: 'Inter', size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>

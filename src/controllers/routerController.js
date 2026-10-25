@@ -2,6 +2,7 @@ const db = require('../config/database');
 const crypto = require('crypto');
 const scriptService = require('../services/scriptService');
 const retentionService = require('../services/retentionService');
+const voucherReportService = require('../services/voucherReportService');
 
 module.exports = {
     async index(req, res) {
@@ -174,6 +175,48 @@ module.exports = {
                 ? scriptService.generateScript(router, activeTemplate.content || activeTemplate.script_content, { interval, startTime, appUrl: res.locals.appUrl })
                 : '';
 
+            let reportData = null;
+            if (tab === 'reports') {
+                const reportMonth = (req.query.month || '').trim();
+                const reportProfile = (req.query.profile || '').trim();
+                const reportSearch = (req.query.report_search || req.query.q || '').trim();
+                const reportPage = Math.max(1, parseInt(req.query.report_page, 10) || 1);
+                const reportLimit = 15;
+                const reportFilters = { month: reportMonth, profile: reportProfile, search: reportSearch };
+
+                const [
+                    reportSummary,
+                    reportMonthly,
+                    reportProfiles,
+                    reportDaily,
+                    reportTransactions,
+                    availableMonths,
+                    availableProfiles
+                ] = await Promise.all([
+                    voucherReportService.getReportSummary(id, reportFilters),
+                    voucherReportService.getMonthlyBreakdown(id, { profile: reportProfile }),
+                    voucherReportService.getProfileBreakdown(id, { month: reportMonth }),
+                    voucherReportService.getDailyBreakdown(id, reportFilters, 31),
+                    voucherReportService.getTransactions(id, reportFilters, reportPage, reportLimit),
+                    voucherReportService.getAvailableMonths(id),
+                    voucherReportService.getAvailableProfiles(id)
+                ]);
+
+                reportData = {
+                    summary: reportSummary,
+                    monthlyBreakdown: reportMonthly,
+                    profileBreakdown: reportProfiles,
+                    dailyBreakdown: reportDaily,
+                    transactions: reportTransactions.transactions,
+                    totalTransactions: reportTransactions.total,
+                    currentPage: reportPage,
+                    totalPages: reportTransactions.totalPages,
+                    availableMonths,
+                    availableProfiles,
+                    filters: reportFilters
+                };
+            }
+
             return res.render('routers/show', {
                 title: `Router: ${router.name}`,
                 router,
@@ -193,7 +236,8 @@ module.exports = {
                 generatedScript,
                 sort,
                 order,
-                search
+                search,
+                reportData
             });
         } catch (err) {
             console.error('Router show error:', err);
