@@ -163,10 +163,12 @@ module.exports = {
                 .limit(limit)
                 .offset(offset);
 
-            // Active templates for tab=script
+            // Active templates for tab=script (default to all-in-one scheduler)
             const templates = await scriptService.getActiveTemplates();
-            const selectedTemplateId = parseInt(req.query.template_id, 10) || (templates[0] ? templates[0].id : null);
-            const activeTemplate = templates.find(t => t.id === selectedTemplateId) || templates[0] || null;
+            const allInOneTpl = templates.find(t => t.slug === 'one_click_setup');
+            const defaultTplId = allInOneTpl ? allInOneTpl.id : (templates[0] ? templates[0].id : null);
+            const selectedTemplateId = parseInt(req.query.template_id, 10) || defaultTplId;
+            const activeTemplate = templates.find(t => t.id === selectedTemplateId) || allInOneTpl || templates[0] || null;
 
             const interval = req.query.interval || '1d';
             const startTime = req.query.start_time || '02:00:00';
