@@ -37,6 +37,15 @@ const INDONESIAN_MONTHS = {
     '12': 'Desember'
 };
 
+function slugify(text) {
+    return text.toString().toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/\-\-+/g, '-')
+        .replace(/^-+/, '')
+        .replace(/-+$/, '');
+}
+
 class VoucherReportService {
     /**
      * Parse raw MikroTik Mikhmon date string (e.g. "mar/01/2026") into ISO SQL date and month
@@ -218,7 +227,7 @@ class VoucherReportService {
             throw new Error('Router tidak ditemukan.');
         }
 
-        // 1. Gather all RSC backups recorded in DB for this router
+        // 1. Gather all RSC backups recorded in DB strictly for THIS router
         const dbBackups = await db('backups')
             .where('router_id', routerId)
             .where('file_type', 'rsc')
@@ -235,9 +244,11 @@ class VoucherReportService {
             }
         }
 
-        // 2. Also search physical storage directory for this router
-        const baseStorage = path.join(process.cwd(), 'storage', 'backups');
-        if (fs.existsSync(baseStorage)) {
+        // 2. Also check physical storage folder STRICTLY belonging to this router (storage/backups/user_{id}/{router_slug})
+        const routerSlug = slugify(router.name || '');
+        const specificRouterDir = path.join(process.cwd(), 'storage', 'backups', `user_${router.user_id}`, routerSlug);
+        
+        if (fs.existsSync(specificRouterDir)) {
             const scanDir = (dir) => {
                 try {
                     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -246,44 +257,18 @@ class VoucherReportService {
                         if (entry.isDirectory()) {
                             scanDir(full);
                         } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.rsc')) {
-                            const normalized = full.toLowerCase().replace(/\\/g, '/');
-                            const routerNameSlug = (router.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                            const isUserMatch = normalized.includes(`/user_${router.user_id}/`);
-                            const isNameMatch = routerNameSlug && normalized.includes(routerNameSlug);
-                            if (isUserMatch || isNameMatch) {
-                                existingFilePaths.add(full);
-                            }
+                            existingFilePaths.add(full);
                         }
                     }
                 } catch (e) {
                     console.warn(`[VoucherReport] Error scanning dir ${dir}:`, e.message);
                 }
             };
-            scanDir(baseStorage);
-
-            // Fallback for local testing if no router-specific files found on disk
-            if (existingFilePaths.size === 0) {
-                const scanAllLargeRsc = (dir) => {
-                    try {
-                        const entries = fs.readdirSync(dir, { withFileTypes: true });
-                        for (const entry of entries) {
-                            const full = path.join(dir, entry.name);
-                            if (entry.isDirectory()) {
-                                scanAllLargeRsc(full);
-                            } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.rsc')) {
-                                if (fs.statSync(full).size > 10000) {
-                                    existingFilePaths.add(full);
-                                }
-                            }
-                        }
-                    } catch (e) {}
-                };
-                scanAllLargeRsc(baseStorage);
-            }
+            scanDir(specificRouterDir);
         }
 
         if (existingFilePaths.size === 0) {
-            throw new Error(`Tidak ditemukan berkas fisik .rsc di disk untuk router '${router.name}'. Pastikan minimal ada 1 berkas backup konfigurasi .rsc yang telah diunggah.`);
+            throw new Error(`Tidak ditemukan berkas backup .rsc fisik di storage untuk router '${router.name}'. Pastikan berkas backup router ini telah diunggah ke server.`);
         }
 
         console.log(`[VoucherReport] Starting multi-file sync for router ${routerId} (${router.name}) across ${existingFilePaths.size} RSC files...`);
