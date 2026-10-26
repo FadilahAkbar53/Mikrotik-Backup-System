@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const activityLogService = require('../services/activityLogService');
+const settingService = require('../services/settingService');
 
 module.exports = {
     showLogin(req, res) {
@@ -74,7 +75,12 @@ module.exports = {
         }
     },
 
-    showRegister(req, res) {
+    async showRegister(req, res) {
+        const allowed = await settingService.getBoolean('allow_registration', true);
+        if (!allowed) {
+            req.flash('info', 'Pendaftaran akun baru saat ini ditutup oleh Administrator.');
+            return res.redirect('/login');
+        }
         res.render('auth/register', {
             title: 'Registrasi Akun',
             layout: false
@@ -83,6 +89,12 @@ module.exports = {
 
     async register(req, res) {
         try {
+            const allowed = await settingService.getBoolean('allow_registration', true);
+            if (!allowed) {
+                req.flash('error', 'Pendaftaran akun baru saat ini ditutup oleh Administrator.');
+                return res.redirect('/login');
+            }
+
             const { name, email, password, password_confirmation } = req.body;
             if (!name || !email || !password) {
                 req.flash('error', 'Semua bidang formulir wajib diisi.');

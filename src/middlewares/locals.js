@@ -3,6 +3,7 @@ const relativeTime = require('dayjs/plugin/relativeTime');
 require('dayjs/locale/id');
 dayjs.extend(relativeTime);
 dayjs.locale('id');
+const settingService = require('../services/settingService');
 
 module.exports = (req, res, next) => {
     res.locals.currentUser = req.session ? req.session.user : null;
@@ -13,8 +14,8 @@ module.exports = (req, res, next) => {
         info: req.flash('info')
     };
     res.locals.currentPath = req.path;
-    res.locals.appName = process.env.APP_NAME || 'MikBack';
-    res.locals.appUrl = (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+    res.locals.appName = settingService.cache.get('app_name') || process.env.APP_NAME || 'MikBack';
+    res.locals.appUrl = (settingService.cache.get('app_url') || process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
     
     // Formatting helpers
     res.locals.formatDate = (date, format = 'DD MMM YYYY HH:mm') => {

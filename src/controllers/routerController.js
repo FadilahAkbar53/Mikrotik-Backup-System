@@ -1,63 +1,194 @@
 const db = require('../config/database');
 const crypto = require('crypto');
+const dayjs = require('dayjs');
 const scriptService = require('../services/scriptService');
 const retentionService = require('../services/retentionService');
 const voucherReportService = require('../services/voucherReportService');
+const settingService = require('../services/settingService');
+const activityLogService = require('../services/activityLogService');
 
 module.exports = {
     async index(req, res) {
         try {
             const user = req.session.user;
             const search = (req.query.search || req.query.q || '').trim();
-            const page = parseInt(req.query.page, 10) || 1;
-            const limit = 15;
+            const status = (req.query.status || 'all').trim();
+            const userId = (req.query.userId || req.query.user_id || 'all').trim();
+            const sort = (req.query.sort || 'created_desc').trim();
+            const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+            const limit = Math.min(100, Math.max(10, parseInt(req.query.limit, 10) || 15));
             const offset = (page - 1) * limit;
 
-            let query = db('routers')
-                .leftJoin('users', 'routers.user_id', 'users.id')
-                .leftJoin('backups', 'routers.id', 'backups.router_id');
+            const [kpis, tenants, { query, threshold, healthThresholdHours }] = await Promise.all([
+                getRouterKPIs(user),
+                user.role === 'admin'
+                    ? db('users').select('id', 'name', 'email').orderBy('name', 'asc')
+                    : Promise.resolve([]),
+                buildRouterQuery(user, { search, status, userId, sort })
+            ]);
 
-            if (user.role !== 'admin') {
-                query = query.where('routers.user_id', user.id);
-            }
+            const countQuery = query.clone().clearSelect().clearOrder().countDistinct('routers.id as count').first();
+            const countRow = await countQuery;
+            const total = parseInt(countRow ? countRow.count : 0, 10) || 0;
 
-            if (search) {
-                query = query.where(function() {
-                    this.where('routers.name', 'like', `%${search}%`)
-                        .orWhere('routers.api_token', 'like', `%${search}%`)
-                        .orWhere('users.name', 'like', `%${search}%`)
-                        .orWhere('users.email', 'like', `%${search}%`);
-                });
-            }
-
-            const totalRow = await query.clone().countDistinct('routers.id as count').first();
-            const total = parseInt(totalRow.count, 10) || 0;
-
-            const routers = await query.clone()
-                .select(
-                    'routers.*',
-                    'users.name as owner_name',
-                    'users.email as owner_email',
-                    db.raw('COUNT(backups.id) as backups_count'),
-                    db.raw('COALESCE(SUM(backups.file_size), 0) as total_size')
-                )
-                .groupBy('routers.id')
-                .orderBy('routers.created_at', 'desc')
+            const routers = await query
                 .limit(limit)
                 .offset(offset);
 
             return res.render('routers/index', {
-                title: 'Daftar Router',
+                title: 'Daftar Router MikroTik',
                 routers,
                 currentPage: page,
                 totalPages: Math.ceil(total / limit) || 1,
                 totalItems: total,
-                search
+                limit,
+                search,
+                currentStatus: status,
+                currentUserId: userId,
+                currentSort: sort,
+                kpis,
+                tenants,
+                healthThresholdHours,
+                threshold
             });
         } catch (err) {
-            console.error('Routers index error:', err);
+            console.error('[RouterController] Index error:', err);
             req.flash('error', 'Gagal memuat daftar router: ' + err.message);
             return res.redirect('/dashboard');
+        }
+    },
+
+    async exportData(req, res) {
+        try {
+            const user = req.session.user;
+            const search = (req.query.search || req.query.q || '').trim();
+            const status = (req.query.status || 'all').trim();
+            const userId = (req.query.userId || req.query.user_id || 'all').trim();
+            const sort = (req.query.sort || 'created_desc').trim();
+            const format = (req.query.format || 'csv').trim().toLowerCase();
+
+            const { query, threshold } = await buildRouterQuery(user, { search, status, userId, sort });
+            const routers = await query;
+
+            if (format === 'json') {
+                res.setHeader('Content-Type', 'application/json');
+                res.setHeader('Content-Disposition', `attachment; filename="mikback_routers_${dayjs().format('YYYYMMDD_HHmmss')}.json"`);
+                return res.json({
+                    exported_at: new Date(),
+                    total: routers.length,
+                    routers: routers.map(r => ({
+                        id: r.id,
+                        name: r.name,
+                        ip_address: r.ip_address || '',
+                        api_token: r.api_token,
+                        owner_name: r.owner_name || '',
+                        owner_email: r.owner_email || '',
+                        last_backup_time: r.last_backup_time,
+                        backups_count: r.backups_count,
+                        total_size_bytes: r.total_size,
+                        created_at: r.created_at
+                    }))
+                });
+            }
+
+            // CSV Export with UTF-8 BOM
+            const filename = `mikback_routers_${dayjs().format('YYYYMMDD_HHmmss')}.csv`;
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+            let csv = '\uFEFF';
+            csv += 'No,ID Router,Nama Router,Pemilik (Tenant),Email Pemilik,IP Address,API Token,Status Kesehatan,Terakhir Sukses Backup,Total File Backup,Total Ukuran (MB),Tanggal Didaftarkan\n';
+
+            routers.forEach((r, idx) => {
+                const isHealthy = r.last_backup_time && dayjs(r.last_backup_time).isAfter(dayjs(threshold));
+                const statusText = !r.last_backup_time ? 'Belum Pernah' : (isHealthy ? 'Sehat' : 'Perlu Perhatian');
+                const lastBackup = r.last_backup_time ? dayjs(r.last_backup_time).format('YYYY-MM-DD HH:mm:ss') : 'Belum Ada';
+                const sizeMB = (parseInt(r.total_size || 0, 10) / (1024 * 1024)).toFixed(2);
+                const createdAt = dayjs(r.created_at).format('YYYY-MM-DD HH:mm:ss');
+
+                const clean = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
+
+                csv += [
+                    idx + 1,
+                    r.id,
+                    clean(r.name),
+                    clean(r.owner_name || '-'),
+                    clean(r.owner_email || '-'),
+                    clean(r.ip_address || '-'),
+                    clean(r.api_token || '-'),
+                    clean(statusText),
+                    clean(lastBackup),
+                    r.backups_count,
+                    sizeMB,
+                    clean(createdAt)
+                ].join(',') + '\n';
+            });
+
+            return res.send(csv);
+        } catch (err) {
+            console.error('[RouterController] Export error:', err);
+            req.flash('error', 'Gagal mengekspor data router: ' + err.message);
+            return res.redirect('/routers');
+        }
+    },
+
+    async bulkDelete(req, res) {
+        try {
+            const user = req.session.user;
+            let ids = req.body.router_ids || req.body['router_ids[]'];
+            if (!ids) {
+                req.flash('error', 'Tidak ada router yang dipilih untuk dihapus.');
+                return res.redirect('/routers');
+            }
+
+            if (!Array.isArray(ids)) {
+                ids = [ids];
+            }
+            ids = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
+
+            if (ids.length === 0) {
+                req.flash('error', 'Pilihan router tidak valid.');
+                return res.redirect('/routers');
+            }
+
+            let routerQuery = db('routers').whereIn('id', ids);
+            if (user.role !== 'admin') {
+                routerQuery = routerQuery.where('user_id', user.id);
+            }
+
+            const targetRouters = await routerQuery;
+            if (targetRouters.length === 0) {
+                req.flash('error', 'Tidak ada router yang diizinkan untuk dihapus.');
+                return res.redirect('/routers');
+            }
+
+            const validIds = targetRouters.map(r => r.id);
+
+            // Fetch and delete all backup files on disk
+            const backups = await db('backups').whereIn('router_id', validIds);
+            for (const b of backups) {
+                retentionService.deletePhysicalFile(b.file_path);
+            }
+
+            await db('backups').whereIn('router_id', validIds).delete();
+            await db('routers').whereIn('id', validIds).delete();
+
+            await activityLogService.log({
+                userId: user.id,
+                type: 'router',
+                action: 'Hapus Massal Router',
+                description: `Pengguna '${user.name}' menghapus ${validIds.length} router secara massal (${targetRouters.map(r => r.name).join(', ')})`,
+                ipAddress: req.ip,
+                status: 'warning',
+                metadata: { deleted_ids: validIds, router_names: targetRouters.map(r => r.name) }
+            });
+
+            req.flash('success', `Berhasil menghapus ${validIds.length} router terpilih beserta seluruh berkas fisiknya.`);
+            return res.redirect('/routers');
+        } catch (err) {
+            console.error('[RouterController] Bulk delete error:', err);
+            req.flash('error', 'Gagal memproses penghapusan massal: ' + err.message);
+            return res.redirect('/routers');
         }
     },
 
@@ -372,3 +503,113 @@ module.exports = {
         }
     }
 };
+
+async function buildRouterQuery(user, { search = '', status = 'all', userId = 'all', sort = 'created_desc' } = {}) {
+    const healthThresholdHours = await settingService.getNumber('health_threshold_hours', 24);
+    const threshold = dayjs().subtract(healthThresholdHours, 'hour').format('YYYY-MM-DD HH:mm:ss');
+
+    let query = db('routers')
+        .leftJoin('users', 'routers.user_id', 'users.id')
+        .leftJoin('backups', 'routers.id', 'backups.router_id');
+
+    // Scoping for non-admin
+    if (user.role !== 'admin') {
+        query = query.where('routers.user_id', user.id);
+    } else if (userId && userId !== 'all') {
+        query = query.where('routers.user_id', parseInt(userId, 10));
+    }
+
+    // Status filter
+    if (status === 'healthy') {
+        query = query.whereNotNull('routers.last_backup_time')
+                     .where('routers.last_backup_time', '>=', threshold);
+    } else if (status === 'late') {
+        query = query.where(function() {
+            this.whereNull('routers.last_backup_time')
+                .orWhere('routers.last_backup_time', '<', threshold);
+        });
+    } else if (status === 'never') {
+        query = query.whereNull('routers.last_backup_time');
+    }
+
+    // Keyword search
+    if (search) {
+        query = query.where(function() {
+            this.where('routers.name', 'like', `%${search}%`)
+                .orWhere('routers.api_token', 'like', `%${search}%`)
+                .orWhere('routers.ip_address', 'like', `%${search}%`)
+                .orWhere('users.name', 'like', `%${search}%`)
+                .orWhere('users.email', 'like', `%${search}%`);
+        });
+    }
+
+    // Select with aggregates
+    query = query.select(
+        'routers.*',
+        'users.name as owner_name',
+        'users.email as owner_email',
+        db.raw('COUNT(backups.id) as backups_count'),
+        db.raw('COALESCE(SUM(backups.file_size), 0) as total_size')
+    ).groupBy('routers.id');
+
+    // Sorting
+    switch (sort) {
+        case 'created_asc':
+            query = query.orderBy('routers.created_at', 'asc');
+            break;
+        case 'backup_desc':
+            query = query.orderByRaw('routers.last_backup_time IS NULL ASC, routers.last_backup_time DESC');
+            break;
+        case 'backup_asc':
+            query = query.orderByRaw('routers.last_backup_time IS NULL DESC, routers.last_backup_time ASC');
+            break;
+        case 'name_asc':
+            query = query.orderBy('routers.name', 'asc');
+            break;
+        case 'name_desc':
+            query = query.orderBy('routers.name', 'desc');
+            break;
+        case 'files_desc':
+            query = query.orderByRaw('COUNT(backups.id) DESC');
+            break;
+        case 'created_desc':
+        default:
+            query = query.orderBy('routers.created_at', 'desc');
+            break;
+    }
+
+    return { query, threshold, healthThresholdHours };
+}
+
+async function getRouterKPIs(user) {
+    const healthThresholdHours = await settingService.getNumber('health_threshold_hours', 24);
+    const threshold = dayjs().subtract(healthThresholdHours, 'hour').format('YYYY-MM-DD HH:mm:ss');
+
+    let baseQuery = db('routers');
+    if (user.role !== 'admin') {
+        baseQuery = baseQuery.where('routers.user_id', user.id);
+    }
+
+    const row = await baseQuery.clone().select(
+        db.raw('COUNT(*) as total_routers'),
+        db.raw('COUNT(CASE WHEN last_backup_time IS NOT NULL AND last_backup_time >= ? THEN 1 END) as healthy_routers', [threshold]),
+        db.raw('COUNT(CASE WHEN last_backup_time IS NULL OR last_backup_time < ? THEN 1 END) as late_routers', [threshold]),
+        db.raw('COUNT(CASE WHEN last_backup_time IS NULL THEN 1 END) as never_routers', [])
+    ).first();
+
+    let backupQuery = db('backups');
+    if (user.role !== 'admin') {
+        backupQuery = backupQuery.join('routers', 'backups.router_id', 'routers.id')
+                                 .where('routers.user_id', user.id);
+    }
+    const backupRow = await backupQuery.count('backups.id as total_backups').first();
+
+    return {
+        total: parseInt(row?.total_routers || '0', 10),
+        healthy: parseInt(row?.healthy_routers || '0', 10),
+        late: parseInt(row?.late_routers || '0', 10),
+        never: parseInt(row?.never_routers || '0', 10),
+        totalBackups: parseInt(backupRow?.total_backups || '0', 10),
+        healthThresholdHours
+    };
+}

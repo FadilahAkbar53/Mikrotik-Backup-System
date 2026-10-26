@@ -1,127 +1,332 @@
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-start align-items-md-center mb-4 flex-column flex-md-row gap-3">
     <div>
-        <h3 class="fw-bold mb-0">Daftar Router MikroTik</h3>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h3 class="fw-bold mb-0 text-dark">Daftar Router MikroTik</h3>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-0.5 small">
+                Router Management
+            </span>
+        </div>
         <p class="text-muted small mb-0">
-            <%= currentUser.role === 'admin' ? 'Semua router yang terdaftar di sistem' : 'Semua router milik akun Anda' %>
+            <%= currentUser.role === 'admin' ? 'Monitoring status seluruh router jaringan, filter cepat, dan ekspor data sistem.' : 'Pantau status kesehatan dan kelola konfigurasi backup seluruh router milik Anda.' %>
         </p>
     </div>
-    <a href="/routers/create" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-plus-circle-fill"></i>
-        <span>Tambah Router Baru</span>
+    <div class="d-flex align-items-center gap-2">
+        <!-- Export Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm rounded-2 dropdown-toggle d-inline-flex align-items-center gap-1.5 shadow-sm px-3" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-download text-primary"></i>
+                <span>Ekspor Data</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-2" style="font-size: 0.85rem;">
+                <li>
+                    <h6 class="dropdown-header text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Pilih Format Berkas</h6>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="/routers/export?format=csv&status=<%= currentStatus %>&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>">
+                        <i class="bi bi-filetype-csv text-success fs-5"></i>
+                        <div>
+                            <div class="fw-semibold text-dark">Format CSV (.csv)</div>
+                            <small class="text-muted">Kompatibel penuh Microsoft Excel & LibreOffice</small>
+                        </div>
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="/routers/export?format=json&status=<%= currentStatus %>&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>">
+                        <i class="bi bi-filetype-json text-warning fs-5"></i>
+                        <div>
+                            <div class="fw-semibold text-dark">Format JSON (.json)</div>
+                            <small class="text-muted">Struktur data terformat untuk integrasi sistem</small>
+                        </div>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <a href="/routers/create" class="btn btn-primary btn-sm rounded-2 d-inline-flex align-items-center gap-1.5 shadow-sm px-3">
+            <i class="bi bi-plus-circle-fill"></i>
+            <span>Tambah Router Baru</span>
+        </a>
+    </div>
+</div>
+
+<!-- Metrics Summary (Clean & Minimalist) -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Total Router</div>
+            <h4 class="fw-bold text-dark mb-0"><%= kpis.total %> <span class="fs-6 fw-normal text-muted">perangkat</span></h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Router Sehat (&lt; <%= healthThresholdHours %> Jam)</div>
+            <h4 class="fw-bold text-success mb-0"><%= kpis.healthy %> <span class="fs-6 fw-normal text-muted">normal</span></h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Perlu Perhatian (&gt; <%= healthThresholdHours %> Jam)</div>
+            <h4 class="fw-bold <%= kpis.late > 0 ? 'text-danger' : 'text-dark' %> mb-0">
+                <%= kpis.late %> <span class="fs-6 fw-normal <%= kpis.late > 0 ? 'text-danger' : 'text-muted' %>"><%= kpis.late > 0 ? 'terlambat' : 'aman' %></span>
+            </h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Total Arsip Backup</div>
+            <h4 class="fw-bold text-dark mb-0"><%= kpis.totalBackups %> <span class="fs-6 fw-normal text-muted">berkas</span></h4>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Filter Status Pills -->
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a href="/routers?status=all&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>" 
+       class="btn btn-sm rounded-pill px-3 <%= currentStatus === 'all' ? 'btn-primary' : 'btn-white border text-secondary bg-white' %>">
+        Semua Router (<%= kpis.total %>)
+    </a>
+    <a href="/routers?status=healthy&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>" 
+       class="btn btn-sm rounded-pill px-3 <%= currentStatus === 'healthy' ? 'btn-success text-white' : 'btn-white border text-secondary bg-white' %>">
+        <span class="rounded-circle d-inline-block bg-success me-1" style="width: 8px; height: 8px;"></span>
+        Sehat (<%= kpis.healthy %>)
+    </a>
+    <a href="/routers?status=late&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>" 
+       class="btn btn-sm rounded-pill px-3 <%= currentStatus === 'late' ? 'btn-danger text-white' : 'btn-white border text-secondary bg-white' %>">
+        <span class="rounded-circle d-inline-block bg-danger me-1" style="width: 8px; height: 8px;"></span>
+        Perlu Perhatian (<%= kpis.late %>)
+    </a>
+    <a href="/routers?status=never&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>" 
+       class="btn btn-sm rounded-pill px-3 <%= currentStatus === 'never' ? 'btn-secondary text-white' : 'btn-white border text-secondary bg-white' %>">
+        <span class="rounded-circle d-inline-block bg-secondary me-1" style="width: 8px; height: 8px;"></span>
+        Belum Pernah (<%= kpis.never %>)
     </a>
 </div>
 
-<div class="card shadow-sm border-0">
-    <div class="card-header bg-white py-3 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-            <h5 class="mb-0 fw-bold"><i class="bi bi-router text-primary me-2"></i>Data Router</h5>
-            <span class="badge bg-light text-secondary border"><%= totalItems %> Perangkat</span>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <form method="GET" action="/routers" class="d-flex align-items-center gap-1">
+<!-- Search & Advanced Filter Toolbar -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="/routers" class="row g-2 align-items-center">
+            <input type="hidden" name="status" value="<%= currentStatus %>">
+
+            <!-- Search Field -->
+            <div class="col-12 <%= currentUser.role === 'admin' ? 'col-md-4' : 'col-md-6' %>">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light text-muted border-end-0">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" name="search" class="form-control form-control-sm border-start-0" placeholder="Cari nama / token..." value="<%= typeof search !== 'undefined' ? search : '' %>">
-                    <% if (typeof search !== 'undefined' && search) { %>
-                        <a href="/routers" class="btn btn-outline-secondary btn-sm" title="Hapus pencarian">
-                            <i class="bi bi-x-lg"></i>
-                        </a>
-                    <% } %>
-                    <button type="submit" class="btn btn-primary btn-sm px-2.5">Cari</button>
+                    <input type="text" name="search" class="form-control border-start-0" placeholder="Cari nama router, IP, token..." value="<%= search %>">
                 </div>
-            </form>
+            </div>
+
+            <!-- Tenant Dropdown (Admin only) -->
+            <% if (currentUser.role === 'admin') { %>
+                <div class="col-6 col-md-3">
+                    <select name="userId" class="form-select form-select-sm">
+                        <option value="all" <%= currentUserId === 'all' ? 'selected' : '' %>>Semua Pemilik (Tenant)</option>
+                        <% if (tenants && tenants.length > 0) { %>
+                            <% tenants.forEach(function(t) { %>
+                                <option value="<%= t.id %>" <%= currentUserId == t.id ? 'selected' : '' %>>
+                                    <%= t.name %> (<%= t.email %>)
+                                </option>
+                            <% }); %>
+                        <% } %>
+                    </select>
+                </div>
+            <% } %>
+
+            <!-- Sorting Dropdown -->
+            <div class="col-6 <%= currentUser.role === 'admin' ? 'col-md-3' : 'col-md-4' %>">
+                <select name="sort" class="form-select form-select-sm">
+                    <option value="created_desc" <%= currentSort === 'created_desc' ? 'selected' : '' %>>Terbaru Ditambahkan</option>
+                    <option value="created_asc" <%= currentSort === 'created_asc' ? 'selected' : '' %>>Terlama Ditambahkan</option>
+                    <option value="backup_desc" <%= currentSort === 'backup_desc' ? 'selected' : '' %>>Backup Terkini</option>
+                    <option value="backup_asc" <%= currentSort === 'backup_asc' ? 'selected' : '' %>>Backup Terlama</option>
+                    <option value="name_asc" <%= currentSort === 'name_asc' ? 'selected' : '' %>>Nama Router (A - Z)</option>
+                    <option value="name_desc" <%= currentSort === 'name_desc' ? 'selected' : '' %>>Nama Router (Z - A)</option>
+                    <option value="files_desc" <%= currentSort === 'files_desc' ? 'selected' : '' %>>Jumlah File Terbanyak</option>
+                </select>
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm rounded-2 flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1">
+                    <i class="bi bi-funnel"></i>
+                    <span>Terapkan</span>
+                </button>
+                <% if (search || currentStatus !== 'all' || (currentUser.role === 'admin' && currentUserId !== 'all') || currentSort !== 'created_desc') { %>
+                    <a href="/routers" class="btn btn-light border btn-sm rounded-2" title="Reset Semua Filter">
+                        <i class="bi bi-x-circle text-muted"></i>
+                    </a>
+                <% } %>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Action Floating Bar -->
+<div id="bulkActionBar" class="card border-0 shadow-sm rounded-3 mb-3 bg-primary text-white d-none">
+    <div class="card-body py-2.5 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2 small">
+            <i class="bi bi-check2-square fs-5"></i>
+            <span><strong id="selectedCounter">0</strong> router terpilih untuk aksi massal</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-light btn-sm text-danger fw-bold rounded-2 d-inline-flex align-items-center gap-1 shadow-sm px-3" onclick="confirmBulkDelete()">
+                <i class="bi bi-trash3-fill"></i>
+                <span>Hapus Terpilih</span>
+            </button>
+            <button type="button" class="btn btn-outline-light btn-sm rounded-2 px-2.5" onclick="clearAllSelections()">
+                Batal
+            </button>
         </div>
     </div>
+</div>
+
+<!-- Main Routers Table -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-router-fill text-primary"></i>
+            <h5 class="fw-bold mb-0 text-dark">Data Router Terdaftar</h5>
+        </div>
+        <span class="badge bg-light text-muted border small">
+            Menampilkan <%= routers.length %> dari <%= totalItems %> perangkat
+        </span>
+    </div>
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-light text-muted small text-uppercase">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
                 <tr>
-                    <th scope="col" class="ps-3">Nama Router</th>
+                    <th scope="col" class="ps-4 py-2.5" style="width: 40px;">
+                        <input type="checkbox" class="form-check-input" id="masterCheckbox" onchange="toggleSelectAll(this)" title="Pilih Semua di Halaman Ini">
+                    </th>
+                    <th scope="col" class="py-2.5">Nama Router & Token</th>
                     <% if (currentUser.role === 'admin') { %>
-                        <th scope="col">Pemilik (Tenant)</th>
+                        <th scope="col" class="py-2.5" style="width: 170px;">Pemilik (Tenant)</th>
                     <% } %>
-                    <th scope="col">Status Backup</th>
-                    <th scope="col">Waktu Terakhir Sukses</th>
-                    <th scope="col">Total File</th>
-                    <th scope="col" class="text-end pe-3">Aksi</th>
+                    <th scope="col" class="py-2.5" style="width: 170px;">Status Kesehatan</th>
+                    <th scope="col" class="py-2.5" style="width: 170px;">Backup Terakhir</th>
+                    <th scope="col" class="py-2.5" style="width: 130px;">Total Arsip</th>
+                    <th scope="col" class="text-end pe-4 py-2.5" style="width: 130px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
-                <% if (routers.length > 0) { %>
-                    <% routers.forEach(function(router) { %>
+                <% if (routers && routers.length > 0) { %>
+                    <% routers.forEach(function(router) { 
+                        const isHealthy = router.last_backup_time && new Date(router.last_backup_time) >= new Date(threshold);
+                    %>
                         <tr>
-                            <td class="ps-3">
-                                <a href="/routers/<%= router.id %>" class="fw-bold text-decoration-none text-dark d-flex align-items-center gap-2">
-                                    <span class="badge bg-light text-dark border p-2"><i class="bi bi-router"></i></span>
+                            <!-- Checkbox -->
+                            <td class="ps-4 py-3">
+                                <input type="checkbox" class="form-check-input router-item-checkbox" value="<%= router.id %>" data-name="<%= router.name %>" onchange="updateBulkBarState()">
+                            </td>
+
+                            <!-- Nama Router & Token -->
+                            <td class="py-3">
+                                <div class="d-flex align-items-start gap-2">
+                                    <div class="p-2 rounded-2 bg-light border text-primary shrink-0 mt-0.5">
+                                        <i class="bi bi-hdd-network-fill"></i>
+                                    </div>
                                     <div>
-                                        <span><%= router.name %></span>
-                                        <div class="small text-muted font-monospace" style="font-size: 0.75rem;">
-                                            Token: <%= router.api_token ? router.api_token.substring(0, 8) + '...' + router.api_token.substring(router.api_token.length - 4) : '—' %>
+                                        <a href="/routers/<%= router.id %>" class="fw-bold text-dark text-decoration-none">
+                                            <%= router.name %>
+                                        </a>
+                                        <div class="d-flex align-items-center gap-1.5 mt-0.5">
+                                            <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.7rem;">
+                                                <%= router.api_token ? router.api_token.substring(0, 8) + '...' + router.api_token.substring(router.api_token.length - 4) : '—' %>
+                                            </span>
+                                            <button type="button" class="btn btn-link p-0 text-muted" onclick="copyToken('<%= router.api_token %>')" title="Salin Token API">
+                                                <i class="bi bi-clipboard" style="font-size: 0.8rem;"></i>
+                                            </button>
+                                            <% if (router.ip_address) { %>
+                                                <span class="text-muted small" style="font-size: 0.72rem;">• <%= router.ip_address %></span>
+                                            <% } %>
                                         </div>
                                     </div>
-                                </a>
+                                </div>
                             </td>
+
+                            <!-- Pemilik (Tenant) -->
                             <% if (currentUser.role === 'admin') { %>
-                                <td>
-                                    <strong><%= router.owner_name || 'User Terhapus' %></strong>
-                                    <div class="small text-muted"><%= router.owner_email || '' %></div>
+                                <td class="py-3">
+                                    <strong class="text-dark"><%= router.owner_name || 'User Dihapus' %></strong>
+                                    <div class="small text-muted" style="font-size: 0.74rem;"><%= router.owner_email || '—' %></div>
                                 </td>
                             <% } %>
-                            <td>
+
+                            <!-- Status Kesehatan -->
+                            <td class="py-3">
                                 <% if (router.last_backup_time) { %>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
-                                        <i class="bi bi-check-circle-fill me-1"></i> Success
-                                    </span>
+                                    <% if (isHealthy) { %>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Sehat
+                                        </span>
+                                    <% } else { %>
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                            <i class="bi bi-exclamation-octagon-fill me-1"></i>Terlambat (&gt; <%= healthThresholdHours %>j)
+                                        </span>
+                                    <% } %>
                                 <% } else { %>
-                                    <span class="badge bg-secondary-subtle text-secondary border px-2.5 py-1">
-                                        <i class="bi bi-clock-history me-1"></i> Belum Pernah
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                        <i class="bi bi-clock-history me-1"></i>Belum Ada File
                                     </span>
                                 <% } %>
                             </td>
-                            <td>
+
+                            <!-- Waktu Terakhir Sukses -->
+                            <td class="py-3">
                                 <% if (router.last_backup_time) { %>
-                                    <div><%= formatDate(router.last_backup_time) %> WIB</div>
-                                    <small class="text-muted"><%= diffForHumans(router.last_backup_time) %></small>
+                                    <div class="fw-semibold text-dark"><%= formatDate(router.last_backup_time, 'DD/MM/YY HH:mm') %> WIB</div>
+                                    <small class="text-muted" style="font-size: 0.72rem;"><%= diffForHumans(router.last_backup_time) %></small>
                                 <% } else { %>
-                                    <span class="text-muted fst-italic">Belum ada file</span>
+                                    <span class="text-muted small fst-italic">Belum pernah</span>
                                 <% } %>
                             </td>
-                            <td>
-                                <span class="badge bg-light text-dark border">
-                                    <i class="bi bi-files me-1"></i> <%= router.backups_count %>
+
+                            <!-- Total File & Ukuran -->
+                            <td class="py-3">
+                                <span class="badge bg-light text-dark border fw-semibold">
+                                    <i class="bi bi-files me-1"></i><%= router.backups_count %> berkas
                                 </span>
+                                <div class="text-muted small mt-0.5" style="font-size: 0.72rem;">
+                                    <%= formatBytes(router.total_size) %>
+                                </div>
                             </td>
-                            <td class="text-end pe-3">
+
+                            <!-- Aksi -->
+                            <td class="pe-4 py-3 text-end">
                                 <div class="btn-group btn-group-sm">
-                                    <a href="/routers/<%= router.id %>" class="btn btn-outline-primary" title="Detail & Script">
-                                        <i class="bi bi-code-slash me-1"></i> Detail & Script
+                                    <a href="/routers/<%= router.id %>" class="btn btn-outline-primary" title="Lihat Detail & Script Generator">
+                                        <i class="bi bi-code-slash"></i>
                                     </a>
-                                    <a href="/routers/<%= router.id %>/edit" class="btn btn-outline-secondary" title="Edit">
+                                    <a href="/routers/<%= router.id %>/edit" class="btn btn-outline-secondary" title="Edit Router">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal<%= router.id %>" title="Hapus">
+                                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteRouterModal<%= router.id %>" title="Hapus Router">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
 
-                                <!-- Delete Modal -->
-                                <div class="modal fade" id="deleteModal<%= router.id %>" tabindex="-1" aria-hidden="true">
+                                <!-- Modal Hapus Router Individu -->
+                                <div class="modal fade" id="deleteRouterModal<%= router.id %>" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered text-start">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title fw-bold">Konfirmasi Hapus</h5>
+                                        <div class="modal-content border-0 shadow">
+                                            <div class="modal-header border-bottom border-light">
+                                                <h5 class="modal-title fw-bold text-dark">Hapus Router</h5>
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                             </div>
-                                            <div class="modal-body">
-                                                <p>Apakah Anda yakin ingin menghapus router <strong><%= router.name %></strong>?</p>
-                                                <p class="text-danger small mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> Semua berkas backup fisik dan catatan yang berkaitan akan dihapus secara permanen dari server.</p>
+                                            <div class="modal-body p-4">
+                                                <p class="text-secondary mb-2">Apakah Anda yakin ingin menghapus router <strong><%= router.name %></strong>?</p>
+                                                <div class="alert alert-danger py-2 px-3 small border-0 mb-0 d-flex gap-2 align-items-center">
+                                                    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                                                    <span>Seluruh file backup fisik (.backup & .rsc) dan catatan log router ini akan dihapus permanen dari server.</span>
+                                                </div>
                                             </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                            <div class="modal-footer border-top border-light">
+                                                <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Batal</button>
                                                 <form action="/routers/<%= router.id %>?_method=DELETE" method="POST" class="d-inline">
-                                                    <button type="submit" class="btn btn-sm btn-danger">Hapus Permanen</button>
+                                                    <button type="submit" class="btn btn-sm btn-danger px-3">Hapus Permanen</button>
                                                 </form>
                                             </div>
                                         </div>
@@ -132,15 +337,27 @@
                     <% }); %>
                 <% } else { %>
                     <tr>
-                        <td colspan="<%= currentUser.role === 'admin' ? 6 : 5 %>" class="text-center py-5 text-muted">
-                            <i class="bi bi-router fs-1 d-block mb-2 text-secondary opacity-50"></i>
-                            <% if (typeof search !== 'undefined' && search) { %>
-                                <p class="mb-2">Tidak ditemukan router dengan kata kunci <strong>"<%= search %>"</strong>.</p>
-                                <a href="/routers" class="btn btn-sm btn-outline-secondary">Reset Pencarian</a>
-                            <% } else { %>
-                                <p class="mb-2">Belum ada router yang terdaftar.</p>
-                                <a href="/routers/create" class="btn btn-sm btn-primary">Tambah Router Sekarang</a>
-                            <% } %>
+                        <td colspan="<%= currentUser.role === 'admin' ? 7 : 6 %>" class="text-center py-5">
+                            <div class="text-center py-4">
+                                <div class="badge bg-light text-muted p-3 rounded-circle mb-3 border">
+                                    <i class="bi bi-router fs-2"></i>
+                                </div>
+                                <h6 class="fw-bold text-dark mb-1">Tidak Ditemukan Router</h6>
+                                <p class="text-muted small mb-3">
+                                    <% if (search || currentStatus !== 'all' || currentUserId !== 'all') { %>
+                                        Tidak ada perangkat yang sesuai dengan kriteria filter yang Anda pilih.
+                                    <% } else { %>
+                                        Belum ada router MikroTik yang terdaftar di sistem.
+                                    <% } %>
+                                </p>
+                                <% if (search || currentStatus !== 'all' || currentUserId !== 'all') { %>
+                                    <a href="/routers" class="btn btn-sm btn-outline-secondary">Reset Filter</a>
+                                <% } else { %>
+                                    <a href="/routers/create" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-plus-lg me-1"></i> Tambah Router Sekarang
+                                    </a>
+                                <% } %>
+                            </div>
                         </td>
                     </tr>
                 <% } %>
@@ -148,16 +365,140 @@
         </table>
     </div>
 
+    <!-- Pagination Footer -->
     <% if (totalPages > 1) { %>
-        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
-            <small class="text-muted">Halaman <%= currentPage %> dari <%= totalPages %></small>
-            <ul class="pagination pagination-sm mb-0">
-                <% for (let p = 1; p <= totalPages; p++) { %>
-                    <li class="page-item <%= p === currentPage ? 'active' : '' %>">
-                        <a class="page-link" href="/routers?page=<%= p %><%= typeof search !== 'undefined' && search ? '&search=' + encodeURIComponent(search) : '' %>"><%= p %></a>
+        <div class="card-footer bg-white border-top border-light py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="text-muted small">
+                Halaman <strong><%= currentPage %></strong> dari <strong><%= totalPages %></strong> (Total <%= totalItems %> perangkat)
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item <%= currentPage <= 1 ? 'disabled' : '' %>">
+                        <a class="page-link" href="/routers?page=<%= currentPage - 1 %>&status=<%= currentStatus %>&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
                     </li>
-                <% } %>
-            </ul>
+
+                    <% 
+                        const startP = Math.max(1, currentPage - 2);
+                        const endP = Math.min(totalPages, currentPage + 2);
+                        for (let p = startP; p <= endP; p++) { 
+                    %>
+                        <li class="page-item <%= p === currentPage ? 'active' : '' %>">
+                            <a class="page-link" href="/routers?page=<%= p %>&status=<%= currentStatus %>&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>">
+                                <%= p %>
+                            </a>
+                        </li>
+                    <% } %>
+
+                    <li class="page-item <%= currentPage >= totalPages ? 'disabled' : '' %>">
+                        <a class="page-link" href="/routers?page=<%= currentPage + 1 %>&status=<%= currentStatus %>&userId=<%= currentUserId %>&sort=<%= currentSort %>&search=<%= encodeURIComponent(search) %>">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         </div>
     <% } %>
 </div>
+
+<!-- Modal Bulk Delete Confirmation -->
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered text-start">
+        <div class="modal-content border-0 shadow">
+            <form action="/routers/bulk-delete" method="POST" id="bulkDeleteForm">
+                <div class="modal-header border-bottom border-light">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-trash3 text-danger fs-5"></i>
+                        <h5 class="modal-title fw-bold text-dark">Konfirmasi Hapus Massal</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">
+                        Anda akan menghapus <strong id="modalBulkCount">0</strong> router terpilih secara serentak.
+                    </p>
+                    <div class="alert alert-danger py-2.5 px-3 small border-0 mb-0 d-flex gap-2 align-items-start">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-0.5"></i>
+                        <span>PERINGATAN: Seluruh berkas backup fisik dan catatan konfigurasi untuk seluruh router terpilih akan dihapus permanen. Tindakan ini tidak dapat dibatalkan!</span>
+                    </div>
+                    <!-- Container for hidden selected IDs -->
+                    <div id="bulkDeleteInputsContainer"></div>
+                </div>
+                <div class="modal-footer border-top border-light">
+                    <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-3">
+                        <i class="bi bi-trash3 me-1"></i> Ya, Hapus Terpilih
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Bulk Actions and Clipboard -->
+<script>
+    function copyToken(token) {
+        if (!token) return;
+        navigator.clipboard.writeText(token).then(() => {
+            alert('API Token berhasil disalin ke clipboard!');
+        }).catch(() => {
+            prompt('Salin Token:', token);
+        });
+    }
+
+    function toggleSelectAll(master) {
+        const checkboxes = document.querySelectorAll('.router-item-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = master.checked;
+        });
+        updateBulkBarState();
+    }
+
+    function updateBulkBarState() {
+        const checked = document.querySelectorAll('.router-item-checkbox:checked');
+        const count = checked.length;
+        const bulkBar = document.getElementById('bulkActionBar');
+        const counter = document.getElementById('selectedCounter');
+
+        if (count > 0) {
+            bulkBar.classList.remove('d-none');
+            counter.textContent = count;
+        } else {
+            bulkBar.classList.add('d-none');
+            counter.textContent = '0';
+            const master = document.getElementById('masterCheckbox');
+            if (master) master.checked = false;
+        }
+    }
+
+    function clearAllSelections() {
+        const checkboxes = document.querySelectorAll('.router-item-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+        const master = document.getElementById('masterCheckbox');
+        if (master) master.checked = false;
+        updateBulkBarState();
+    }
+
+    function confirmBulkDelete() {
+        const checked = document.querySelectorAll('.router-item-checkbox:checked');
+        if (checked.length === 0) return;
+
+        const countSpan = document.getElementById('modalBulkCount');
+        countSpan.textContent = checked.length;
+
+        const container = document.getElementById('bulkDeleteInputsContainer');
+        container.innerHTML = '';
+
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'router_ids[]';
+            input.value = cb.value;
+            container.appendChild(input);
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('bulkDeleteModal'));
+        modal.show();
+    }
+</script>

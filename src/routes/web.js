@@ -11,6 +11,7 @@ const adminUserController = require('../controllers/adminUserController');
 const adminScriptTemplateController = require('../controllers/adminScriptTemplateController');
 const adminRetentionController = require('../controllers/adminRetentionController');
 const adminLogController = require('../controllers/adminLogController');
+const adminSettingController = require('../controllers/adminSettingController');
 const reportController = require('../controllers/reportController');
 
 // Root redirect
@@ -38,6 +39,8 @@ router.post('/impersonate/leave', adminUserController.leaveImpersonate);
 
 // Routers Management
 router.get('/routers', routerController.index);
+router.get('/routers/export', routerController.exportData);
+router.post('/routers/bulk-delete', routerController.bulkDelete);
 router.get('/routers/create', routerController.create);
 router.post('/routers', routerController.store);
 router.get('/routers/:id', routerController.show);
@@ -96,5 +99,9 @@ router.post('/admin/retention/dry-run', (req, res, next) => {
 // Admin System & Audit Logs
 router.get('/admin/logs', adminLogController.index);
 router.post('/admin/logs/prune', adminLogController.prune);
+
+// Admin Centralized Application Settings
+router.get('/admin/settings', adminSettingController.index);
+router.post('/admin/settings', adminSettingController.update);
 
 module.exports = router;
