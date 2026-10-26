@@ -170,7 +170,7 @@
                     <th>Status Akun</th>
                     <th>Router & Kuota</th>
                     <th>Terdaftar</th>
-                    <th class="text-end pe-3" style="min-width: 220px;">Aksi Cepat</th>
+                    <th class="text-end pe-3" style="width: 80px;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -235,61 +235,103 @@
                                 <div style="font-size: 0.72rem;"><%= diffForHumans(u.created_at) %></div>
                             </td>
                             <td class="text-end pe-3">
-                                <div class="btn-group btn-group-sm">
-                                    <!-- Saran 3: Tombol Reset Password Langsung -->
-                                    <button type="button" 
-                                            class="btn btn-outline-primary btn-reset-pwd" 
-                                            title="Reset Password Pengguna Langsung"
-                                            data-id="<%= u.id %>"
-                                            data-name="<%= u.name %>"
-                                            data-email="<%= u.email %>">
-                                        <i class="bi bi-key-fill"></i>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border text-secondary px-2 py-1 rounded-2 shadow-none" 
+                                            type="button" 
+                                            data-bs-toggle="dropdown" 
+                                            data-bs-boundary="viewport"
+                                            data-bs-popper-config='{"strategy":"fixed"}'
+                                            aria-expanded="false" 
+                                            title="Menu Pengguna">
+                                        <i class="bi bi-three-dots-vertical"></i>
                                     </button>
-
-                                    <!-- Saran 1: Tombol Toggle Status (Aktifkan / Suspend) -->
-                                    <% if (u.id !== currentUser.id) { %>
-                                        <form action="/admin/users/<%= u.id %>/toggle-status" method="POST" class="d-inline"
-                                              onsubmit="return confirm('<%= isUserActive ? 'Apakah Anda yakin ingin menonaktifkan akun ' + u.name + '? Akun tidak akan bisa login dan router miliknya ditolak backup.' : 'Aktifkan kembali akun ' + u.name + '?' %>');">
-                                            <button type="submit" 
-                                                    class="btn <%= isUserActive ? 'btn-outline-warning' : 'btn-outline-success' %>" 
-                                                    title="<%= isUserActive ? 'Nonaktifkan / Suspend Akun' : 'Aktifkan Akun' %>">
-                                                <i class="bi <%= isUserActive ? 'bi-pause-circle' : 'bi-play-circle' %>"></i>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" style="font-size: 0.85rem; min-width: 220px;">
+                                        <li>
+                                            <h6 class="dropdown-header text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">
+                                                Menu Tindakan
+                                            </h6>
+                                        </li>
+                                        <!-- Detail Pengguna -->
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="/admin/users/<%= u.id %>">
+                                                <i class="bi bi-person-lines-fill text-primary"></i>
+                                                <span>Lihat Detail & Router</span>
+                                            </a>
+                                        </li>
+                                        <!-- Edit Profil -->
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="/admin/users/<%= u.id %>/edit">
+                                                <i class="bi bi-pencil text-secondary"></i>
+                                                <span>Edit Profil Pengguna</span>
+                                            </a>
+                                        </li>
+                                        <!-- Reset Password (Saran 3) -->
+                                        <li>
+                                            <button type="button" 
+                                                    class="dropdown-item d-flex align-items-center gap-2 py-2 btn-reset-pwd text-dark"
+                                                    data-id="<%= u.id %>"
+                                                    data-name="<%= u.name %>"
+                                                    data-email="<%= u.email %>">
+                                                <i class="bi bi-key-fill text-warning"></i>
+                                                <span>Reset Kata Sandi</span>
                                             </button>
-                                        </form>
-                                    <% } else { %>
-                                        <button type="button" class="btn btn-outline-secondary" disabled title="Tidak dapat mengubah status akun sendiri">
-                                            <i class="bi bi-lock"></i>
-                                        </button>
-                                    <% } %>
+                                        </li>
 
-                                    <!-- Impersonate Button -->
-                                    <% if (u.id !== currentUser.id) { %>
-                                        <% if (isUserActive) { %>
-                                            <form action="/admin/users/<%= u.id %>/impersonate" method="POST" class="d-inline">
-                                                <button type="submit" class="btn btn-outline-secondary" title="Login sebagai user ini (Impersonate)">
-                                                    <i class="bi bi-person-fill-gear"></i>
-                                                </button>
-                                            </form>
+                                        <li><hr class="dropdown-divider my-1"></li>
+
+                                        <!-- Toggle Status (Saran 1) -->
+                                        <% if (u.id !== currentUser.id) { %>
+                                            <li>
+                                                <form action="/admin/users/<%= u.id %>/toggle-status" method="POST"
+                                                      onsubmit="return confirm('<%= isUserActive ? 'Nonaktifkan akun ' + u.name + '? Akun tidak akan bisa login dan router miliknya ditolak backup.' : 'Aktifkan kembali akun ' + u.name + '?' %>');">
+                                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 <%= isUserActive ? 'text-warning' : 'text-success' %>">
+                                                        <i class="bi <%= isUserActive ? 'bi-pause-circle' : 'bi-play-circle' %>"></i>
+                                                        <span><%= isUserActive ? 'Nonaktifkan (Suspend)' : 'Aktifkan Akun' %></span>
+                                                    </button>
+                                                </form>
+                                            </li>
                                         <% } else { %>
-                                            <button type="button" class="btn btn-outline-secondary" disabled title="Akun dinonaktifkan (tidak dapat di-impersonate)">
-                                                <i class="bi bi-person-fill-slash"></i>
-                                            </button>
+                                            <li>
+                                                <span class="dropdown-item disabled text-muted d-flex align-items-center gap-2 py-2">
+                                                    <i class="bi bi-lock"></i>
+                                                    <span>Akun Anda Sendiri</span>
+                                                </span>
+                                            </li>
                                         <% } %>
-                                    <% } %>
 
-                                    <!-- Edit Profile -->
-                                    <a href="/admin/users/<%= u.id %>/edit" class="btn btn-outline-secondary" title="Edit Profil">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
+                                        <!-- Impersonate -->
+                                        <% if (u.id !== currentUser.id) { %>
+                                            <li>
+                                                <% if (isUserActive) { %>
+                                                    <form action="/admin/users/<%= u.id %>/impersonate" method="POST">
+                                                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-dark">
+                                                            <i class="bi bi-person-fill-gear text-info"></i>
+                                                            <span>Login Sebagai User</span>
+                                                        </button>
+                                                    </form>
+                                                <% } else { %>
+                                                    <span class="dropdown-item disabled text-muted d-flex align-items-center gap-2 py-2">
+                                                        <i class="bi bi-person-fill-slash"></i>
+                                                        <span>Login Sebagai User (Suspended)</span>
+                                                    </span>
+                                                <% } %>
+                                            </li>
+                                        <% } %>
 
-                                    <!-- Delete Button -->
-                                    <% if (u.id !== currentUser.id) { %>
-                                        <form action="/admin/users/<%= u.id %>?_method=DELETE" method="POST" class="d-inline" onsubmit="return confirm('Hapus permanen pengguna <%= u.name %>? Seluruh router & data backup miliknya akan dihapus.');">
-                                            <button type="submit" class="btn btn-outline-danger" title="Hapus Pengguna">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    <% } %>
+                                        <!-- Hapus Akun -->
+                                        <% if (u.id !== currentUser.id) { %>
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            <li>
+                                                <form action="/admin/users/<%= u.id %>?_method=DELETE" method="POST" 
+                                                      onsubmit="return confirm('Hapus permanen pengguna <%= u.name %>? Seluruh router & data backup miliknya akan dihapus.');">
+                                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger">
+                                                        <i class="bi bi-trash"></i>
+                                                        <span>Hapus Pengguna</span>
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        <% } %>
+                                    </ul>
                                 </div>
                             </td>
                         </tr>
@@ -468,5 +510,14 @@ function copyPasswordToClipboard() {
 .card-hover:hover {
     transform: translateY(-2px);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
+}
+.table-responsive {
+    min-height: 260px;
+}
+.dropdown-item {
+    font-size: 0.835rem;
+}
+.dropdown-item:hover {
+    background-color: #f8fafc;
 }
 </style>
