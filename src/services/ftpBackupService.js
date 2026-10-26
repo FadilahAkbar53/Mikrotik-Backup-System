@@ -130,9 +130,13 @@ class FtpBackupService {
 
                     // Authenticate router by token in database
                     const router = await db('routers')
-                        .where({ api_token: token })
-                        .orWhere({ api_token: username })
-                        .orWhere({ api_token: password })
+                        .leftJoin('users', 'routers.user_id', 'users.id')
+                        .select('routers.*', 'users.is_active as user_is_active', 'users.name as owner_name')
+                        .where(function() {
+                            this.where('routers.api_token', token)
+                                .orWhere('routers.api_token', username)
+                                .orWhere('routers.api_token', password);
+                        })
                         .first();
 
                     if (!router) {
@@ -144,6 +148,19 @@ class FtpBackupService {
                             status: 'warning'
                         });
                         return reject(new Error('Invalid router token'));
+                    }
+
+                    if (router.user_is_active === 0 || router.user_is_active === false) {
+                        console.warn(`[FTP Server] Rejected FTP login from suspended user '${router.owner_name}' on router '${router.name}'`);
+                        activityLogService.log({
+                            userId: router.user_id,
+                            routerId: router.id,
+                            type: 'ftp_error',
+                            action: 'FTP Ditolak: Akun Dinonaktifkan',
+                            description: `Transmisi FTP router '${router.name}' ditolak karena akun pemilik '${router.owner_name}' berstatus dinonaktifkan (suspended)`,
+                            status: 'warning'
+                        });
+                        return reject(new Error('User account is suspended'));
                     }
 
                     // Dedicated temp dir for this router's session

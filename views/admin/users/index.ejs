@@ -1,93 +1,291 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h3 class="fw-bold mb-0">Kelola Pengguna (Users)</h3>
-        <p class="text-muted small mb-0">Manajemen akun tenant, hak akses role administrator, dan fitur impersonasi</p>
+        <p class="text-muted small mb-0">Manajemen akun tenant, kontrol status aktif/suspend, reset password, dan role administrator</p>
     </div>
-    <a href="/admin/users/create" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm">
-        <i class="bi bi-person-plus-fill"></i>
-        <span>Tambah Pengguna Baru</span>
-    </a>
+    <div class="d-flex gap-2">
+        <a href="/admin/users/create" class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm rounded-2">
+            <i class="bi bi-person-plus-fill"></i>
+            <span>Tambah Pengguna</span>
+        </a>
+    </div>
 </div>
 
-<!-- Search & Filters -->
-<div class="card shadow-sm mb-4">
+<!-- Saran 4: Kartu Ringkasan (KPI Pengguna) -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <a href="/admin/users" class="text-decoration-none">
+            <div class="card shadow-sm border-0 h-100 card-hover <%= (!currentStatus || currentStatus === 'all') && (!currentRole || currentRole === 'all') && !search ? 'border-primary border-2' : '' %>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Total Pengguna</span>
+                            <h3 class="fw-bold text-dark mb-0 mt-1"><%= stats.total %></h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Semua akun terdaftar</small>
+                        </div>
+                        <div class="rounded-3 bg-primary-subtle text-primary p-3">
+                            <i class="bi bi-people-fill fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="/admin/users?status=active&role=user" class="text-decoration-none">
+            <div class="card shadow-sm border-0 h-100 card-hover <%= currentStatus === 'active' && currentRole === 'user' ? 'border-success border-2' : '' %>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Tenant Aktif</span>
+                            <h3 class="fw-bold text-success mb-0 mt-1"><%= stats.activeTenants %></h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Bisa login & backup</small>
+                        </div>
+                        <div class="rounded-3 bg-success-subtle text-success p-3">
+                            <i class="bi bi-person-check-fill fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="/admin/users?status=suspended" class="text-decoration-none">
+            <div class="card shadow-sm border-0 h-100 card-hover <%= currentStatus === 'suspended' ? 'border-danger border-2' : '' %>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Dinonaktifkan</span>
+                            <h3 class="fw-bold text-danger mb-0 mt-1"><%= stats.suspended %></h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Akses dibekukan</small>
+                        </div>
+                        <div class="rounded-3 bg-danger-subtle text-danger p-3">
+                            <i class="bi bi-person-x-fill fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a href="/admin/users?role=admin" class="text-decoration-none">
+            <div class="card shadow-sm border-0 h-100 card-hover <%= currentRole === 'admin' ? 'border-info border-2' : '' %>">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold text-uppercase">Administrator</span>
+                            <h3 class="fw-bold text-info mb-0 mt-1"><%= stats.admins %></h3>
+                            <small class="text-muted" style="font-size: 0.75rem;">Akses kelola sistem</small>
+                        </div>
+                        <div class="rounded-3 bg-info-subtle text-info p-3">
+                            <i class="bi bi-shield-shaded fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Saran 4: Toolbar Filter Cepat & Pencarian -->
+<div class="card shadow-sm border-0 mb-4">
     <div class="card-body p-3">
         <form action="/admin/users" method="GET" class="row g-2 align-items-center">
             <div class="col-md-5">
                 <div class="input-group">
-                    <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                    <input type="text" name="search" class="form-control" placeholder="Cari nama atau email pengguna..." value="<%= search %>">
+                    <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" class="form-control border-start-0 ps-0" placeholder="Cari nama atau email pengguna..." value="<%= search %>">
                 </div>
             </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-dark">Filter</button>
-                <% if (search) { %>
-                    <a href="/admin/users" class="btn btn-outline-secondary">Reset</a>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="all" <%= (!currentStatus || currentStatus === 'all') ? 'selected' : '' %>>-- Semua Status --</option>
+                    <option value="active" <%= currentStatus === 'active' ? 'selected' : '' %>>Aktif Saja</option>
+                    <option value="suspended" <%= currentStatus === 'suspended' ? 'selected' : '' %>>Dinonaktifkan / Suspended</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="role" class="form-select">
+                    <option value="all" <%= (!currentRole || currentRole === 'all') ? 'selected' : '' %>>-- Semua Role --</option>
+                    <option value="user" <%= currentRole === 'user' ? 'selected' : '' %>>Tenant (User)</option>
+                    <option value="admin" <%= currentRole === 'admin' ? 'selected' : '' %>>Administrator</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-dark w-100">
+                    <i class="bi bi-funnel me-1"></i> Filter
+                </button>
+                <% if (search || (currentStatus && currentStatus !== 'all') || (currentRole && currentRole !== 'all')) { %>
+                    <a href="/admin/users" class="btn btn-outline-secondary" title="Reset Filter">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </a>
                 <% } %>
             </div>
         </form>
+
+        <% if (search || (currentStatus && currentStatus !== 'all') || (currentRole && currentRole !== 'all')) { %>
+            <div class="d-flex align-items-center gap-2 mt-3 pt-2 border-top flex-wrap">
+                <small class="text-muted fw-semibold">Filter Aktif:</small>
+                <% if (search) { %>
+                    <span class="badge bg-light text-dark border">
+                        Pencarian: "<strong><%= search %></strong>"
+                    </span>
+                <% } %>
+                <% if (currentStatus && currentStatus !== 'all') { %>
+                    <span class="badge <%= currentStatus === 'active' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' %>">
+                        Status: <%= currentStatus === 'active' ? 'Aktif' : 'Dinonaktifkan' %>
+                    </span>
+                <% } %>
+                <% if (currentRole && currentRole !== 'all') { %>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                        Role: <%= currentRole === 'admin' ? 'Administrator' : 'Tenant' %>
+                    </span>
+                <% } %>
+                <a href="/admin/users" class="small text-danger text-decoration-none ms-auto">
+                    <i class="bi bi-x-circle me-1"></i>Hapus Semua Filter
+                </a>
+            </div>
+        <% } %>
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold"><i class="bi bi-people text-primary me-2"></i>Daftar Pengguna</h5>
-        <span class="badge bg-secondary"><%= totalItems %> Pengguna Terdaftar</span>
+<!-- Daftar Pengguna -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0 fw-bold"><i class="bi bi-people text-primary me-2"></i>Daftar Pengguna</h5>
+            <small class="text-muted">Menampilkan <%= users.length %> dari total <%= totalItems %> akun yang sesuai filter</small>
+        </div>
+        <span class="badge bg-secondary-subtle text-secondary border px-3 py-2">
+            Total: <%= totalItems %> Akun
+        </span>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light text-muted small text-uppercase">
                 <tr>
-                    <th class="ps-3">Nama & Email</th>
+                    <th class="ps-3" style="min-width: 240px;">Pengguna</th>
                     <th>Role</th>
-                    <th>Total Router</th>
-                    <th>Terdaftar Sejak</th>
-                    <th class="text-end pe-3">Aksi</th>
+                    <!-- Saran 1: Kolom Status Akun -->
+                    <th>Status Akun</th>
+                    <th>Router & Kuota</th>
+                    <th>Terdaftar</th>
+                    <th class="text-end pe-3" style="min-width: 220px;">Aksi Cepat</th>
                 </tr>
             </thead>
             <tbody>
                 <% if (users.length > 0) { %>
                     <% users.forEach(function(u) { %>
-                        <tr>
+                        <% const isUserActive = (u.is_active !== 0); %>
+                        <tr class="<%= !isUserActive ? 'table-light text-muted' : '' %>">
                             <td class="ps-3">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge <%= u.role === 'admin' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle' %> p-2 rounded-circle">
-                                        <i class="bi <%= u.role === 'admin' ? 'bi-shield-shaded' : 'bi-person' %>"></i>
-                                    </span>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="position-relative">
+                                        <span class="badge <%= u.role === 'admin' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle' %> p-2 rounded-circle">
+                                            <i class="bi <%= u.role === 'admin' ? 'bi-shield-shaded' : 'bi-person' %> fs-5"></i>
+                                        </span>
+                                        <% if (!isUserActive) { %>
+                                            <span class="position-absolute bottom-0 end-0 p-1 bg-danger border border-white rounded-circle" title="Akun Dinonaktifkan"></span>
+                                        <% } else { %>
+                                            <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle" title="Akun Aktif"></span>
+                                        <% } %>
+                                    </div>
                                     <div>
-                                        <div class="fw-bold text-dark"><%= u.name %></div>
+                                        <div class="fw-bold <%= !isUserActive ? 'text-muted text-decoration-line-through' : 'text-dark' %>">
+                                            <a href="/admin/users/<%= u.id %>" class="text-decoration-none text-dark fw-bold">
+                                                <%= u.name %>
+                                            </a>
+                                            <% if (u.id === currentUser.id) { %>
+                                                <span class="badge bg-secondary-subtle text-secondary ms-1" style="font-size: 0.65rem;">(Anda)</span>
+                                            <% } %>
+                                        </div>
                                         <div class="small text-muted"><%= u.email %></div>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <span class="badge <%= u.role === 'admin' ? 'bg-danger' : 'bg-secondary' %> text-uppercase" style="font-size: 0.7rem;">
-                                    <%= u.role %>
+                                <span class="badge <%= u.role === 'admin' ? 'bg-danger' : 'bg-primary' %> text-uppercase px-2 py-1" style="font-size: 0.7rem;">
+                                    <%= u.role === 'admin' ? 'Admin' : 'Tenant' %>
                                 </span>
+                            </td>
+                            <!-- Saran 1: Tampilan Status -->
+                            <td>
+                                <% if (isUserActive) { %>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Aktif
+                                    </span>
+                                <% } else { %>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                        <i class="bi bi-slash-circle-fill me-1"></i> Dinonaktifkan
+                                    </span>
+                                <% } %>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border">
-                                    <i class="bi bi-router me-1"></i> <%= u.routers_count %>
-                                </span>
+                                <div class="d-flex flex-column gap-1">
+                                    <span class="badge bg-light text-dark border text-start w-auto">
+                                        <i class="bi bi-router text-primary me-1"></i> <%= u.routers_count %> Router
+                                    </span>
+                                    <small class="text-muted" style="font-size: 0.72rem;">
+                                        <i class="bi bi-hdd me-1"></i> <%= formatBytes(u.total_storage || 0) %>
+                                    </small>
+                                </div>
                             </td>
                             <td class="text-muted small">
-                                <%= formatDate(u.created_at, 'DD MMM YYYY') %>
+                                <div><%= formatDate(u.created_at, 'DD/MM/YYYY') %></div>
+                                <div style="font-size: 0.72rem;"><%= diffForHumans(u.created_at) %></div>
                             </td>
                             <td class="text-end pe-3">
                                 <div class="btn-group btn-group-sm">
+                                    <!-- Saran 3: Tombol Reset Password Langsung -->
+                                    <button type="button" 
+                                            class="btn btn-outline-primary btn-reset-pwd" 
+                                            title="Reset Password Pengguna Langsung"
+                                            data-id="<%= u.id %>"
+                                            data-name="<%= u.name %>"
+                                            data-email="<%= u.email %>">
+                                        <i class="bi bi-key-fill"></i>
+                                    </button>
+
+                                    <!-- Saran 1: Tombol Toggle Status (Aktifkan / Suspend) -->
                                     <% if (u.id !== currentUser.id) { %>
-                                        <form action="/admin/users/<%= u.id %>/impersonate" method="POST" class="d-inline">
-                                            <button type="submit" class="btn btn-outline-warning" title="Login sebagai user ini (Impersonate)">
-                                                <i class="bi bi-person-fill-gear"></i>
+                                        <form action="/admin/users/<%= u.id %>/toggle-status" method="POST" class="d-inline"
+                                              onsubmit="return confirm('<%= isUserActive ? 'Apakah Anda yakin ingin menonaktifkan akun ' + u.name + '? Akun tidak akan bisa login dan router miliknya ditolak backup.' : 'Aktifkan kembali akun ' + u.name + '?' %>');">
+                                            <button type="submit" 
+                                                    class="btn <%= isUserActive ? 'btn-outline-warning' : 'btn-outline-success' %>" 
+                                                    title="<%= isUserActive ? 'Nonaktifkan / Suspend Akun' : 'Aktifkan Akun' %>">
+                                                <i class="bi <%= isUserActive ? 'bi-pause-circle' : 'bi-play-circle' %>"></i>
                                             </button>
                                         </form>
+                                    <% } else { %>
+                                        <button type="button" class="btn btn-outline-secondary" disabled title="Tidak dapat mengubah status akun sendiri">
+                                            <i class="bi bi-lock"></i>
+                                        </button>
                                     <% } %>
-                                    <a href="/admin/users/<%= u.id %>/edit" class="btn btn-outline-secondary" title="Edit">
+
+                                    <!-- Impersonate Button -->
+                                    <% if (u.id !== currentUser.id) { %>
+                                        <% if (isUserActive) { %>
+                                            <form action="/admin/users/<%= u.id %>/impersonate" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-outline-secondary" title="Login sebagai user ini (Impersonate)">
+                                                    <i class="bi bi-person-fill-gear"></i>
+                                                </button>
+                                            </form>
+                                        <% } else { %>
+                                            <button type="button" class="btn btn-outline-secondary" disabled title="Akun dinonaktifkan (tidak dapat di-impersonate)">
+                                                <i class="bi bi-person-fill-slash"></i>
+                                            </button>
+                                        <% } %>
+                                    <% } %>
+
+                                    <!-- Edit Profile -->
+                                    <a href="/admin/users/<%= u.id %>/edit" class="btn btn-outline-secondary" title="Edit Profil">
                                         <i class="bi bi-pencil"></i>
                                     </a>
+
+                                    <!-- Delete Button -->
                                     <% if (u.id !== currentUser.id) { %>
-                                        <form action="/admin/users/<%= u.id %>?_method=DELETE" method="POST" class="d-inline" onsubmit="return confirm('Hapus pengguna <%= u.name %>? Seluruh router miliknya akan terdampak.');">
-                                            <button type="submit" class="btn btn-outline-danger" title="Hapus">
+                                        <form action="/admin/users/<%= u.id %>?_method=DELETE" method="POST" class="d-inline" onsubmit="return confirm('Hapus permanen pengguna <%= u.name %>? Seluruh router & data backup miliknya akan dihapus.');">
+                                            <button type="submit" class="btn btn-outline-danger" title="Hapus Pengguna">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
@@ -98,8 +296,14 @@
                     <% }); %>
                 <% } else { %>
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
-                            Tidak ditemukan data pengguna yang cocok.
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-people display-6 d-block mb-2 text-secondary"></i>
+                            Tidak ditemukan data pengguna yang cocok dengan kriteria pencarian.
+                            <% if (search || currentStatus !== 'all' || currentRole !== 'all') { %>
+                                <div class="mt-2">
+                                    <a href="/admin/users" class="btn btn-sm btn-outline-primary">Reset Filter Pencarian</a>
+                                </div>
+                            <% } %>
                         </td>
                     </tr>
                 <% } %>
@@ -107,16 +311,162 @@
         </table>
     </div>
 
+    <!-- Paginasi dengan mempertahankan query params -->
+    <% 
+        function buildPageUrl(p) {
+            let params = [];
+            if (search) params.push('search=' + encodeURIComponent(search));
+            if (currentStatus && currentStatus !== 'all') params.push('status=' + encodeURIComponent(currentStatus));
+            if (currentRole && currentRole !== 'all') params.push('role=' + encodeURIComponent(currentRole));
+            params.push('page=' + p);
+            return '/admin/users?' + params.join('&');
+        }
+    %>
+
     <% if (totalPages > 1) { %>
         <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
-            <small class="text-muted">Halaman <%= currentPage %> dari <%= totalPages %></small>
+            <small class="text-muted">Halaman <%= currentPage %> dari <%= totalPages %> (Total <%= totalItems %> Pengguna)</small>
             <ul class="pagination pagination-sm mb-0">
+                <% if (currentPage > 1) { %>
+                    <li class="page-item">
+                        <a class="page-link" href="<%= buildPageUrl(currentPage - 1) %>">Sebelumnya</a>
+                    </li>
+                <% } %>
+
                 <% for (let p = 1; p <= totalPages; p++) { %>
-                    <li class="page-item <%= p === currentPage ? 'active' : '' %>">
-                        <a class="page-link" href="/admin/users?page=<%= p %>&search=<%= search %>"><%= p %></a>
+                    <% if (p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2)) { %>
+                        <li class="page-item <%= p === currentPage ? 'active' : '' %>">
+                            <a class="page-link" href="<%= buildPageUrl(p) %>"><%= p %></a>
+                        </li>
+                    <% } else if (p === currentPage - 3 || p === currentPage + 3) { %>
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    <% } %>
+                <% } %>
+
+                <% if (currentPage < totalPages) { %>
+                    <li class="page-item">
+                        <a class="page-link" href="<%= buildPageUrl(currentPage + 1) %>">Berikutnya</a>
                     </li>
                 <% } %>
             </ul>
         </div>
     <% } %>
 </div>
+
+<!-- Saran 3: Modal Reset Password Pengguna Langsung oleh Admin -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="resetPasswordModalLabel">
+                    <i class="bi bi-key-fill text-warning me-2"></i>Reset Password Pengguna
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="resetPasswordForm" method="POST" action="">
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Anda me-reset password secara langsung tanpa memerlukan kata sandi lama akun tersebut.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">Target Pengguna:</label>
+                        <div class="p-2 bg-light rounded border">
+                            <div class="fw-bold text-dark" id="modalTargetName">-</div>
+                            <div class="small text-muted" id="modalTargetEmail">-</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label for="modalNewPassword" class="form-label fw-bold small text-dark mb-0">Kata Sandi Baru (Min. 8 Karakter)</label>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="generateRandomPassword()">
+                                <i class="bi bi-magic me-1"></i>Buat Acak
+                            </button>
+                        </div>
+                        <div class="input-group">
+                            <input type="text" class="form-control font-monospace" id="modalNewPassword" name="new_password" placeholder="Ketik kata sandi baru..." minlength="8" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="copyPasswordToClipboard()" title="Salin Password">
+                                <i class="bi bi-clipboard" id="copyIcon"></i>
+                            </button>
+                        </div>
+                        <div class="form-text small text-muted">
+                            Pastikan menyalin dan memberikan kata sandi baru ini kepada pengguna bersangkutan.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-2">
+                        <i class="bi bi-check-lg me-1"></i>Simpan Password Baru
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-reset-pwd').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            openResetPasswordModal(this.dataset.id, this.dataset.name, this.dataset.email);
+        });
+    });
+});
+
+function openResetPasswordModal(userId, userName, userEmail) {
+    document.getElementById('modalTargetName').textContent = userName;
+    document.getElementById('modalTargetEmail').textContent = userEmail;
+    document.getElementById('resetPasswordForm').action = '/admin/users/' + userId + '/reset-password';
+    document.getElementById('modalNewPassword').value = '';
+    
+    // Auto generate a recommended strong password
+    generateRandomPassword();
+
+    const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+    modal.show();
+}
+
+function generateRandomPassword() {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    // Ensure at least 1 uppercase, 1 lowercase, 1 number, 1 symbol
+    password += "ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random() * 24)];
+    password += "abcdefghjkmnpqrstuvwxyz"[Math.floor(Math.random() * 23)];
+    password += "23456789"[Math.floor(Math.random() * 8)];
+    password += "!@#$%^&*"[Math.floor(Math.random() * 8)];
+    for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    // Shuffle
+    password = password.split('').sort(() => 0.5 - Math.random()).join('');
+    
+    const input = document.getElementById('modalNewPassword');
+    input.value = password;
+}
+
+function copyPasswordToClipboard() {
+    const input = document.getElementById('modalNewPassword');
+    if (!input.value) return;
+    
+    navigator.clipboard.writeText(input.value).then(() => {
+        const icon = document.getElementById('copyIcon');
+        icon.className = 'bi bi-check-lg text-success';
+        setTimeout(() => {
+            icon.className = 'bi bi-clipboard';
+        }, 2000);
+    });
+}
+</script>
+
+<style>
+.card-hover {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
+}
+</style>

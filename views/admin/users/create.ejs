@@ -31,11 +31,19 @@
                         <input type="password" class="form-control" id="password" name="password" minlength="8" autocomplete="new-password" data-lpignore="true" readonly onfocus="this.removeAttribute('readonly');" required>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="role" class="form-label fw-bold small text-dark">Hak Akses (Role)</label>
                         <select name="role" id="role" class="form-select" required>
                             <option value="user" selected>Tenant / User Biasa</option>
                             <option value="admin">Administrator Sistem</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="is_active" class="form-label fw-bold small text-dark">Status Akun</label>
+                        <select name="is_active" id="is_active" class="form-select">
+                            <option value="1" selected>Aktif (Bisa Login & Kirim Backup)</option>
+                            <option value="0">Dinonaktifkan / Suspended</option>
                         </select>
                     </div>
 

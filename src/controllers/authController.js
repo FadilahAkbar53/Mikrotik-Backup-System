@@ -47,6 +47,20 @@ module.exports = {
                 return res.redirect('/login');
             }
 
+            // Check if account is suspended / inactive
+            if (user.is_active === 0 || user.is_active === false) {
+                activityLogService.log({
+                    userId: user.id,
+                    type: 'auth',
+                    action: 'Login Ditolak: Akun Dinonaktifkan',
+                    description: `Pengguna '${user.name}' (${user.email}) ditolak login karena status akun dinonaktifkan (suspended)`,
+                    ipAddress: req.ip,
+                    status: 'warning'
+                });
+                req.flash('error', 'Akun Anda telah dinonaktifkan oleh Administrator. Silakan hubungi admin untuk informasi lebih lanjut.');
+                return res.redirect('/login');
+            }
+
             activityLogService.log({
                 userId: user.id,
                 type: 'auth',

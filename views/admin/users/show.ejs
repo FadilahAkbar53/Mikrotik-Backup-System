@@ -1,23 +1,56 @@
+<% const isUserActive = (user.is_active !== 0); %>
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div class="d-flex align-items-center gap-2">
-        <a href="/admin/users" class="btn btn-outline-secondary btn-sm">
+        <a href="/admin/users" class="btn btn-outline-secondary btn-sm rounded-2">
             <i class="bi bi-arrow-left"></i>
         </a>
         <div>
-            <h3 class="fw-bold mb-0"><%= user.name %></h3>
+            <div class="d-flex align-items-center gap-2">
+                <h3 class="fw-bold mb-0"><%= user.name %></h3>
+                <% if (isUserActive) { %>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                        <i class="bi bi-check-circle-fill me-1"></i> Aktif
+                    </span>
+                <% } else { %>
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                        <i class="bi bi-slash-circle-fill me-1"></i> Dinonaktifkan (Suspended)
+                    </span>
+                <% } %>
+            </div>
             <p class="text-muted small mb-0"><%= user.email %> &bull; Bergabung <%= formatDate(user.created_at, 'DD MMM YYYY') %></p>
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
+        <!-- Reset Password Button -->
+        <button type="button" class="btn btn-outline-primary rounded-2" id="btnShowResetPassword"
+                data-id="<%= user.id %>"
+                data-name="<%= user.name %>"
+                data-email="<%= user.email %>">
+            <i class="bi bi-key-fill me-1"></i> Reset Password
+        </button>
+
+        <!-- Toggle Status Button -->
         <% if (user.id !== currentUser.id) { %>
-            <form action="/admin/users/<%= user.id %>/impersonate" method="POST">
-                <button type="submit" class="btn btn-warning d-inline-flex align-items-center gap-1">
-                    <i class="bi bi-person-fill-gear"></i> Impersonate Akun Ini
+            <form action="/admin/users/<%= user.id %>/toggle-status" method="POST" class="d-inline"
+                  onsubmit="return confirm('<%= isUserActive ? 'Nonaktifkan akun ' + user.name + '? Akun tidak akan bisa login dan router miliknya ditolak backup.' : 'Aktifkan kembali akun ' + user.name + '?' %>');">
+                <button type="submit" class="btn <%= isUserActive ? 'btn-outline-warning' : 'btn-outline-success' %> rounded-2">
+                    <i class="bi <%= isUserActive ? 'bi-pause-circle' : 'bi-play-circle' %> me-1"></i>
+                    <%= isUserActive ? 'Suspend Akun' : 'Aktifkan Akun' %>
                 </button>
             </form>
         <% } %>
-        <a href="/admin/users/<%= user.id %>/edit" class="btn btn-outline-secondary">
-            <i class="bi bi-pencil"></i> Edit Profil
+
+        <!-- Impersonate Button -->
+        <% if (user.id !== currentUser.id && isUserActive) { %>
+            <form action="/admin/users/<%= user.id %>/impersonate" method="POST">
+                <button type="submit" class="btn btn-warning rounded-2 d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-person-fill-gear"></i> Impersonate
+                </button>
+            </form>
+        <% } %>
+
+        <a href="/admin/users/<%= user.id %>/edit" class="btn btn-outline-secondary rounded-2">
+            <i class="bi bi-pencil me-1"></i> Edit Profil
         </a>
     </div>
 </div>
@@ -25,16 +58,22 @@
 <div class="row g-4">
     <!-- User Overview -->
     <div class="col-md-4">
-        <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white">
                 <h6 class="mb-0 fw-bold">Informasi Akun</h6>
             </div>
             <div class="card-body">
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted">Role:</span>
+                        <span class="text-muted">Status Akun:</span>
+                        <span class="badge <%= isUserActive ? 'bg-success' : 'bg-danger' %>">
+                            <%= isUserActive ? 'Aktif' : 'Dinonaktifkan' %>
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Hak Akses:</span>
                         <span class="badge <%= user.role === 'admin' ? 'bg-danger' : 'bg-primary' %> text-uppercase">
-                            <%= user.role %>
+                            <%= user.role === 'admin' ? 'Administrator' : 'Tenant' %>
                         </span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between px-0">
@@ -45,6 +84,10 @@
                         <span class="text-muted">Terdaftar:</span>
                         <span><%= formatDate(user.created_at, 'DD MMM YYYY HH:mm') %></span>
                     </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Terakhir Update:</span>
+                        <span><%= formatDate(user.updated_at, 'DD MMM YYYY HH:mm') %></span>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -52,7 +95,7 @@
 
     <!-- User's Routers -->
     <div class="col-md-8">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm border-0">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-bold">Daftar Router Milik <%= user.name %></h6>
                 <span class="badge bg-secondary"><%= routers.length %> Router</span>
@@ -121,3 +164,102 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Reset Password -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="resetPasswordModalLabel">
+                    <i class="bi bi-key-fill text-warning me-2"></i>Reset Password Pengguna
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="resetPasswordForm" method="POST" action="">
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Anda me-reset password pengguna secara langsung tanpa kata sandi lama.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted mb-1">Target Pengguna:</label>
+                        <div class="p-2 bg-light rounded border">
+                            <div class="fw-bold text-dark" id="modalTargetName">-</div>
+                            <div class="small text-muted" id="modalTargetEmail">-</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label for="modalNewPassword" class="form-label fw-bold small text-dark mb-0">Kata Sandi Baru (Min. 8 Karakter)</label>
+                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="generateRandomPassword()">
+                                <i class="bi bi-magic me-1"></i>Buat Acak
+                            </button>
+                        </div>
+                        <div class="input-group">
+                            <input type="text" class="form-control font-monospace" id="modalNewPassword" name="new_password" placeholder="Ketik kata sandi baru..." minlength="8" required>
+                            <button type="button" class="btn btn-outline-secondary" onclick="copyPasswordToClipboard()" title="Salin Password">
+                                <i class="bi bi-clipboard" id="copyIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-2">
+                        <i class="bi bi-check-lg me-1"></i>Simpan Password Baru
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('btnShowResetPassword');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            openResetPasswordModal(this.dataset.id, this.dataset.name, this.dataset.email);
+        });
+    }
+});
+
+function openResetPasswordModal(userId, userName, userEmail) {
+    document.getElementById('modalTargetName').textContent = userName;
+    document.getElementById('modalTargetEmail').textContent = userEmail;
+    document.getElementById('resetPasswordForm').action = '/admin/users/' + userId + '/reset-password';
+    document.getElementById('modalNewPassword').value = '';
+    generateRandomPassword();
+
+    const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+    modal.show();
+}
+
+function generateRandomPassword() {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    password += "ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random() * 24)];
+    password += "abcdefghjkmnpqrstuvwxyz"[Math.floor(Math.random() * 23)];
+    password += "23456789"[Math.floor(Math.random() * 8)];
+    password += "!@#$%^&*"[Math.floor(Math.random() * 8)];
+    for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    password = password.split('').sort(() => 0.5 - Math.random()).join('');
+    document.getElementById('modalNewPassword').value = password;
+}
+
+function copyPasswordToClipboard() {
+    const input = document.getElementById('modalNewPassword');
+    if (!input.value) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+        const icon = document.getElementById('copyIcon');
+        icon.className = 'bi bi-check-lg text-success';
+        setTimeout(() => {
+            icon.className = 'bi bi-clipboard';
+        }, 2000);
+    });
+}
+</script>
