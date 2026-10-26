@@ -501,6 +501,70 @@ module.exports = {
             req.flash('error', 'Gagal meregenerasi token: ' + err.message);
             return res.redirect(`/routers/${req.params.id}`);
         }
+    },
+
+    async manualUpload(req, res) {
+        try {
+            const { id } = req.params;
+            const user = req.session.user;
+
+            const router = await db('routers').where({ id }).first();
+            if (!router) {
+                req.flash('error', 'Router tidak ditemukan.');
+                return res.redirect('/routers');
+            }
+
+            if (user.role !== 'admin' && router.user_id !== user.id) {
+                req.flash('error', 'Anda tidak memiliki hak akses untuk router ini.');
+                return res.redirect('/routers');
+            }
+
+            if (!req.file) {
+                req.flash('error', 'Silakan pilih berkas backup (.rsc atau .backup) terlebih dahulu.');
+                return res.redirect(`/routers/${id}?tab=backups`);
+            }
+
+            const originalName = req.file.originalname.toLowerCase();
+            let type = null;
+            if (originalName.endsWith('.rsc')) {
+                type = 'rsc';
+            } else if (originalName.endsWith('.backup')) {
+                type = 'backup';
+            }
+
+            if (!type) {
+                req.flash('error', 'Format berkas tidak didukung. Harap unggah berkas berekstensi .backup atau .rsc.');
+                return res.redirect(`/routers/${id}?tab=backups`);
+            }
+
+            const backupQueueService = require('../services/backupQueueService');
+            await backupQueueService.enqueue({
+                router,
+                type,
+                file: req.file,
+                clientFilename: req.file.originalname
+            });
+
+            // Allow quick processing
+            await new Promise(resolve => setTimeout(resolve, 600));
+
+            await activityLogService.log({
+                userId: user.id,
+                routerId: router.id,
+                type: 'backup',
+                action: 'Unggah Backup Manual',
+                description: `Pengguna '${user.name}' mengunggah berkas backup manual '${req.file.originalname}' (${(req.file.size / 1024 / 1024).toFixed(2)} MB) untuk router '${router.name}'`,
+                ipAddress: req.ip,
+                status: 'success'
+            });
+
+            req.flash('success', `Berkas backup '${req.file.originalname}' berhasil diunggah dan disimpan ke penyimpanan cloud.`);
+            return res.redirect(`/routers/${id}?tab=backups`);
+        } catch (err) {
+            console.error('[RouterController] Manual upload error:', err);
+            req.flash('error', 'Gagal memproses unggahan backup: ' + err.message);
+            return res.redirect(`/routers/${req.params.id}?tab=backups`);
+        }
     }
 };
 

@@ -28,11 +28,25 @@ router.post('/login', isGuest, authController.login);
 router.get('/register', isGuest, authController.showRegister);
 router.post('/register', isGuest, authController.register);
 
+const profileController = require('../controllers/profileController');
+const multer = require('multer');
+const os = require('os');
+const webUpload = multer({
+    dest: os.tmpdir(),
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB max for manual backups
+});
+
 // Authenticated Routes
 router.use(isAuthenticated);
 
 router.post('/logout', authController.logout);
 router.get('/dashboard', dashboardController.index);
+
+// User Profile & Security Management
+router.get('/profile', profileController.index);
+router.post('/profile', profileController.updateProfile);
+router.put('/profile', profileController.updateProfile);
+router.post('/profile/password', profileController.updatePassword);
 
 // Impersonation Exit
 router.post('/impersonate/leave', adminUserController.leaveImpersonate);
@@ -48,6 +62,7 @@ router.get('/routers/:id/edit', routerController.edit);
 router.put('/routers/:id', routerController.update);
 router.delete('/routers/:id', routerController.destroy);
 router.post('/routers/:id/regenerate-token', routerController.regenerateToken);
+router.post('/routers/:id/manual-upload', webUpload.single('backup_file'), routerController.manualUpload);
 
 // Hotspot Voucher Reports
 router.get('/reports', reportController.index);

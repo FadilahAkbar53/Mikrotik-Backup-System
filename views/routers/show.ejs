@@ -27,6 +27,10 @@
         </div>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1.5 rounded-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#uploadManualBackupModal">
+            <i class="bi bi-cloud-arrow-up-fill"></i>
+            <span>Upload Backup Manual</span>
+        </button>
         <a href="/routers/<%= router.id %>/edit" class="btn btn-light border btn-sm d-inline-flex align-items-center gap-1.5 rounded-2 text-secondary">
             <i class="bi bi-pencil"></i>
             <span>Edit</span>
@@ -621,6 +625,10 @@
                             <button type="submit" class="btn btn-primary btn-sm px-2.5">Cari</button>
                         </div>
                     </form>
+                    <button type="button" class="btn btn-sm btn-primary text-white d-inline-flex align-items-center gap-1 shadow-sm rounded-2" data-bs-toggle="modal" data-bs-target="#uploadManualBackupModal">
+                        <i class="bi bi-cloud-arrow-up-fill"></i>
+                        <span>Upload Manual</span>
+                    </button>
                     <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-light border text-secondary">
                         <i class="bi bi-terminal me-1 text-primary"></i> Setup Script
                     </a>
@@ -720,10 +728,15 @@
                                         <p class="mb-2">Tidak ditemukan berkas backup dengan kata kunci <strong>"<%= search %>"</strong>.</p>
                                         <a href="/routers/<%= router.id %>?tab=backups" class="btn btn-sm btn-outline-secondary">Reset Pencarian</a>
                                     <% } else { %>
-                                        <p class="mb-2">Belum ada berkas backup untuk router ini.</p>
-                                        <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-primary">
-                                            Setup Script Backup Sekarang
-                                        </a>
+                                        <p class="mb-3">Belum ada berkas backup yang tersimpan untuk router ini.</p>
+                                        <div class="d-flex justify-content-center gap-2 flex-wrap">
+                                            <button type="button" class="btn btn-sm btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#uploadManualBackupModal">
+                                                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload Backup Manual
+                                            </button>
+                                            <a href="/routers/<%= router.id %>?tab=script" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-terminal me-1"></i> Setup Script Backup
+                                            </a>
+                                        </div>
                                     <% } %>
                                 </td>
                             </tr>
@@ -772,6 +785,94 @@
     </div>
 </div>
 
+<!-- Upload Manual Backup Modal (Feature 3) -->
+<div class="modal fade" id="uploadManualBackupModal" tabindex="-1" aria-labelledby="uploadManualBackupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="uploadManualBackupModalLabel">
+                    <i class="bi bi-cloud-arrow-up-fill text-primary me-2"></i>Upload Berkas Backup Manual
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/routers/<%= router.id %>/manual-upload" method="POST" enctype="multipart/form-data" id="manualUploadForm">
+                <div class="modal-body p-4">
+                    <!-- Penjelasan Langkah 1: Pembuatan File di MikroTik -->
+                    <div class="alert alert-primary-subtle border border-primary-subtle rounded-3 p-3 mb-3">
+                        <h6 class="fw-bold text-primary mb-2 d-flex align-items-center gap-1.5" style="font-size: 0.85rem;">
+                            <i class="bi bi-terminal-fill"></i> Langkah 1: Buat & Ambil Berkas dari MikroTik
+                        </h6>
+                        <ol class="small text-dark mb-0 ps-3" style="line-height: 1.6;">
+                            <li>Buka <strong>Winbox</strong> atau terminal SSH router <strong><%= router.name %></strong>.</li>
+                            <li>Jalankan salah satu perintah berikut di terminal MikroTik:
+                                <div class="bg-dark text-light p-2.5 rounded font-monospace small my-2">
+                                    <div class="text-info mb-1 fw-bold"># Opsi A: Backup Biner Sistem Lengkap (.backup)</div>
+                                    <code class="text-white">/system backup save name="<%= router.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-') %>-manual"</code>
+                                    <div class="text-warning mt-2 mb-1 fw-bold"># Opsi B: Export Script Konfigurasi (.rsc)</div>
+                                    <code class="text-white">/export show-sensitive file="<%= router.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-') %>-manual"</code>
+                                </div>
+                            </li>
+                            <li>Buka menu <strong>Files</strong> di Winbox, lalu seret (<em>drag-and-drop</em>) berkas tersebut ke komputer Anda.</li>
+                        </ol>
+                    </div>
+
+                    <!-- Penjelasan Langkah 2: Format & Standar Penamaan -->
+                    <div class="card border border-light-subtle bg-light rounded-3 p-3 mb-3">
+                        <h6 class="fw-bold text-dark mb-2 d-flex align-items-center gap-1.5" style="font-size: 0.85rem;">
+                            <i class="bi bi-info-circle-fill text-info"></i> Langkah 2: Format & Standar Penamaan Berkas
+                        </h6>
+                        <ul class="small text-muted mb-0 ps-3" style="line-height: 1.6;">
+                            <li><strong>Ekstensi Berkas Wajib:</strong> Hanya berkas berakhiran <code>.backup</code> (binary) atau <code>.rsc</code> (script teks) yang diterima.</li>
+                            <li><strong>Rekomendasi Format Nama:</strong> <code>[NamaRouter]_[Tanggal].[backup|rsc]</code>
+                                <br><span class="text-dark fw-semibold">Contoh:</span> <code><%= router.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-') %>_2026-10-26.backup</code> atau <code><%= router.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-') %>_2026-10-26.rsc</code>
+                            </li>
+                            <li><strong>Hindari Karakter Khusus:</strong> Jangan gunakan spasi, tanda tanya, atau simbol (<code>!@#$%^&*()</code>) agar berkas aman saat di-restore kembali ke MikroTik.</li>
+                            <li><strong>Ukuran Maksimal:</strong> Hingga <strong>100 MB</strong> per berkas.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Penjelasan Langkah 3: Formulir Upload -->
+                    <div class="mb-3">
+                        <label for="manualBackupFile" class="form-label fw-bold small text-dark">
+                            Langkah 3: Pilih Berkas dari Komputer Anda
+                        </label>
+                        <input type="file" 
+                               class="form-control" 
+                               id="manualBackupFile" 
+                               name="backup_file" 
+                               accept=".backup,.rsc" 
+                               required 
+                               onchange="validateSelectedFile(this)">
+                        <div class="form-text small" id="fileValidationText">
+                            Pilih file berekstensi <code>.backup</code> atau <code>.rsc</code> dari penyimpanan lokal Anda.
+                        </div>
+                    </div>
+
+                    <!-- Preview box of selected file -->
+                    <div id="fileInfoBox" class="p-3 bg-white border rounded-2 d-none">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-file-earmark-check text-success fs-4" id="fileTypeIcon"></i>
+                                <div>
+                                    <div class="fw-bold text-dark small" id="fileNamePreview">-</div>
+                                    <div class="text-muted small" id="fileSizePreview" style="font-size: 0.72rem;">-</div>
+                                </div>
+                            </div>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle" id="fileBadgePreview">Valid</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary rounded-2" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary rounded-2 px-3" id="btnSubmitManualUpload">
+                        <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload & Simpan ke Cloud
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     function copyScriptToClipboard() {
         const text = document.getElementById('scriptPreContent').innerText;
@@ -795,4 +896,43 @@
             icon.className = 'bi bi-eye';
         }
     }
+
+    function validateSelectedFile(input) {
+        const file = input.files[0];
+        const infoBox = document.getElementById('fileInfoBox');
+        const namePreview = document.getElementById('fileNamePreview');
+        const sizePreview = document.getElementById('fileSizePreview');
+        const badgePreview = document.getElementById('fileBadgePreview');
+        const icon = document.getElementById('fileTypeIcon');
+
+        if (!file) {
+            infoBox.classList.add('d-none');
+            return;
+        }
+
+        const name = file.name.toLowerCase();
+        const isBackup = name.endsWith('.backup');
+        const isRsc = name.endsWith('.rsc');
+
+        if (!isBackup && !isRsc) {
+            alert('Format file tidak didukung! Harap pilih file berekstensi .backup atau .rsc.');
+            input.value = '';
+            infoBox.classList.add('d-none');
+            return;
+        }
+
+        infoBox.classList.remove('d-none');
+        namePreview.textContent = file.name;
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        sizePreview.textContent = `${sizeMb} MB (${file.size.toLocaleString('id-ID')} bytes)`;
+        badgePreview.textContent = isBackup ? 'Binary Backup (.backup)' : 'Configuration Script (.rsc)';
+        badgePreview.className = isBackup ? 'badge bg-primary-subtle text-primary border border-primary-subtle' : 'badge bg-info-subtle text-info border border-info-subtle';
+        icon.className = isBackup ? 'bi bi-file-earmark-binary text-primary fs-4' : 'bi bi-file-earmark-code text-info fs-4';
+    }
+
+    document.getElementById('manualUploadForm')?.addEventListener('submit', function() {
+        const btn = document.getElementById('btnSubmitManualUpload');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Mengunggah & Memproses...';
+    });
 </script>
