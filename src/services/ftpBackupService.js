@@ -5,6 +5,7 @@ const net = require('net');
 const dns = require('dns').promises;
 const db = require('../config/database');
 const backupQueueService = require('./backupQueueService');
+const activityLogService = require('./activityLogService');
 
 class RouterFtpFileSystem extends FtpSrv.FileSystem {
     constructor(connection, { root, cwd, router }) {
@@ -29,6 +30,16 @@ class RouterFtpFileSystem extends FtpSrv.FileSystem {
 
                 console.log(`[FTP Server] Upload completed for router '${this.router.name}': ${baseName} (${stats.size} bytes)`);
 
+                activityLogService.log({
+                    userId: this.router.user_id,
+                    routerId: this.router.id,
+                    type: 'ftp_upload',
+                    action: 'Upload FTP Selesai',
+                    description: `Berkas '${baseName}' (${(stats.size / 1024 / 1024).toFixed(2)} MB) berhasil diunggah oleh router '${this.router.name}' via FTP`,
+                    status: 'success',
+                    metadata: { fileName: baseName, size: stats.size, type }
+                });
+
                 // Enqueue backup job for atomic processing, moving to storage, DB record, and retention pruning
                 await backupQueueService.enqueue({
                     router: this.router,
@@ -42,6 +53,14 @@ class RouterFtpFileSystem extends FtpSrv.FileSystem {
                 });
             } catch (err) {
                 console.error(`[FTP Server] Error handling uploaded file '${baseName}':`, err.message);
+                activityLogService.log({
+                    userId: this.router.user_id,
+                    routerId: this.router.id,
+                    type: 'ftp_error',
+                    action: 'Gagal Memproses File FTP',
+                    description: `Gagal memproses file '${baseName}' dari router '${this.router.name}': ${err.message}`,
+                    status: 'error'
+                });
             }
         });
 
@@ -118,6 +137,12 @@ class FtpBackupService {
 
                     if (!router) {
                         console.warn(`[FTP Server] Rejected unauthorized login attempt with token: ${token.substring(0, 8)}...`);
+                        activityLogService.log({
+                            type: 'ftp_error',
+                            action: 'Otentikasi FTP Ditolak',
+                            description: `Upaya login FTP gagal dengan token tidak terdaftar: '${token.substring(0, 10)}...'`,
+                            status: 'warning'
+                        });
                         return reject(new Error('Invalid router token'));
                     }
 

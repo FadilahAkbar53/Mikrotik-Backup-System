@@ -10,6 +10,7 @@ const backupController = require('../controllers/backupController');
 const adminUserController = require('../controllers/adminUserController');
 const adminScriptTemplateController = require('../controllers/adminScriptTemplateController');
 const adminRetentionController = require('../controllers/adminRetentionController');
+const adminLogController = require('../controllers/adminLogController');
 const reportController = require('../controllers/reportController');
 
 // Root redirect
@@ -91,5 +92,9 @@ router.post('/admin/retention/dry-run', (req, res, next) => {
     req.query.dry_run = '1';
     return adminRetentionController.prune(req, res, next);
 });
+
+// Admin System & Audit Logs
+router.get('/admin/logs', adminLogController.index);
+router.post('/admin/logs/prune', adminLogController.prune);
 
 module.exports = router;

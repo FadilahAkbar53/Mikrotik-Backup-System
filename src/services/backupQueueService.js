@@ -5,6 +5,7 @@ const dayjs = require('dayjs');
 const db = require('../config/database');
 const retentionService = require('./retentionService');
 const voucherReportService = require('./voucherReportService');
+const activityLogService = require('./activityLogService');
 
 function slugify(text) {
     return text.toString().toLowerCase()
@@ -255,6 +256,16 @@ class BackupQueueService {
                 console.warn(`[VoucherReport AutoSync] Error syncing vouchers for router ${job.routerId}:`, syncErr.message);
             });
         }
+
+        activityLogService.log({
+            userId: job.userId,
+            routerId: job.routerId,
+            type: 'backup',
+            action: `Backup .${job.type.toUpperCase()} Tersimpan`,
+            description: `Berkas ${job.type === 'backup' ? 'Binary (.backup)' : 'Export Script (.rsc)'} dari router '${job.routerName}' berhasil diverifikasi dan disimpan ke storage (${(finalSize / 1024 / 1024).toFixed(2)} MB)`,
+            status: 'success',
+            metadata: { file_path: relativeSavedPath, file_size: finalSize, file_type: job.type }
+        });
 
         console.log(`[BackupQueue] Completed job ${job.jobId} -> ${relativeSavedPath} (${finalSize} bytes). Remaining in queue: ${this.queue.length}`);
     }

@@ -46,6 +46,129 @@
     </div>
 </div>
 
+<!-- Server & Service Health Monitor (Kesehatan Server & Layanan Terpusat) -->
+<% if (typeof serverHealth !== 'undefined' && serverHealth) { %>
+<div class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+    <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-heart-pulse text-danger"></i>
+            <h5 class="fw-bold mb-0 text-dark">Kesehatan Server & Layanan (Health Monitor)</h5>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-muted border small d-inline-flex align-items-center gap-1">
+                <i class="bi bi-clock"></i> Uptime: <%= serverHealth.system.uptime %>
+            </span>
+            <a href="/admin/logs" class="btn btn-sm btn-outline-primary rounded-2 py-0.5 px-2.5" style="font-size: 0.78rem;">
+                <i class="bi bi-journal-text me-1"></i>Audit Log
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3">
+            <!-- 1. Daemon FTP Listener -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="p-3 rounded-3 border bg-light-subtle h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-hdd-rack text-primary fs-5"></i>
+                            <span class="fw-bold text-dark small">Daemon FTP MikroTik</span>
+                        </div>
+                        <% if (serverHealth.ftp.status === 'online') { %>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                                <i class="bi bi-check-circle-fill me-1"></i>Online (<%= serverHealth.ftp.latency %>ms)
+                            </span>
+                        <% } else { %>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                                <i class="bi bi-exclamation-octagon-fill me-1"></i>Offline
+                            </span>
+                        <% } %>
+                    </div>
+                    <div class="text-secondary small" style="font-size: 0.78rem;">
+                        Port: <strong class="text-dark font-monospace"><%= serverHealth.ftp.port %></strong> / TCP
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: 0.72rem;">
+                        <%= serverHealth.ftp.message %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Penyimpanan Hardisk VPS -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="p-3 rounded-3 border bg-light-subtle h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-pie-chart text-info fs-5"></i>
+                            <span class="fw-bold text-dark small">Hardisk Penyimpanan</span>
+                        </div>
+                        <span class="badge <%= serverHealth.disk.percentUsed > 90 ? 'bg-danger-subtle text-danger border border-danger-subtle' : (serverHealth.disk.percentUsed > 80 ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle') %> rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                            <%= serverHealth.disk.percentUsed %>% Digunakan
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center text-secondary small mb-1.5" style="font-size: 0.76rem;">
+                        <span><%= serverHealth.disk.usedFormatted %> terpakai</span>
+                        <span class="text-muted"><%= serverHealth.disk.freeFormatted %> kosong</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar <%= serverHealth.disk.percentUsed > 90 ? 'bg-danger' : (serverHealth.disk.percentUsed > 80 ? 'bg-warning' : 'bg-primary') %>" role="progressbar" style="width: <%= serverHealth.disk.percentUsed %>%;" aria-valuenow="<%= serverHealth.disk.percentUsed %>" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="text-muted mt-1.5" style="font-size: 0.72rem;">
+                        Total Kapasitas Partisi: <strong class="text-dark"><%= serverHealth.disk.totalFormatted %></strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Database MySQL -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="p-3 rounded-3 border bg-light-subtle h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-database text-success fs-5"></i>
+                            <span class="fw-bold text-dark small">Koneksi Database</span>
+                        </div>
+                        <% if (serverHealth.database.status === 'online') { %>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                                <i class="bi bi-check-circle-fill me-1"></i><%= serverHealth.database.latency %>ms
+                            </span>
+                        <% } else { %>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Terputus
+                            </span>
+                        <% } %>
+                    </div>
+                    <div class="text-secondary small" style="font-size: 0.78rem;">
+                        Data: <strong class="text-dark"><%= serverHealth.database.stats.routers %></strong> router, <strong class="text-dark"><%= serverHealth.database.stats.backups %></strong> file
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: 0.72rem;">
+                        <%= serverHealth.database.message %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Background Daemon & Retensi -->
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="p-3 rounded-3 border bg-light-subtle h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-clock-history text-warning fs-5"></i>
+                            <span class="fw-bold text-dark small">Retensi & Auto-Prune</span>
+                        </div>
+                        <span class="badge <%= serverHealth.system.retention.autoPruneEnabled ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border' %> rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                            <%= serverHealth.system.retention.autoPruneEnabled ? 'Cron 00:00 Aktif' : 'Manual' %>
+                        </span>
+                    </div>
+                    <div class="text-secondary small" style="font-size: 0.78rem;">
+                        RAM RSS: <strong class="text-dark"><%= serverHealth.system.memoryRss %></strong>
+                    </div>
+                    <div class="text-muted mt-1" style="font-size: 0.72rem;">
+                        Terakhir Prune: <%= diffForHumans(serverHealth.system.retention.lastPrunedAt) %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+
 <!-- Charts Section: Backup Trends & System Composition -->
 <div class="row g-4 mb-4">
     <!-- Chart 1: Tren Aktivitas Backup (7 Hari Terakhir) -->
@@ -253,6 +376,118 @@
                 </table>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Log Sistem & Audit Terbaru Section -->
+<div class="card border-0 shadow-sm rounded-3 mt-4 mb-4">
+    <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text text-primary"></i>
+            <h5 class="fw-bold mb-0 text-dark">Log Sistem & Audit Terbaru</h5>
+        </div>
+        <a href="/admin/logs" class="btn btn-sm btn-outline-primary rounded-2 px-3 d-inline-flex align-items-center gap-1.5 shadow-sm">
+            <span>Buka Halaman Audit Lengkap</span>
+            <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                <tr>
+                    <th class="ps-4 py-2.5" style="width: 160px;">Waktu</th>
+                    <th class="py-2.5" style="width: 120px;">Kategori</th>
+                    <th class="py-2.5" style="width: 90px;">Status</th>
+                    <th class="py-2.5">Aksi & Deskripsi</th>
+                    <th class="py-2.5" style="width: 180px;">Entitas Terkait</th>
+                    <th class="pe-4 py-2.5 text-end" style="width: 130px;">IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (typeof recentLogs !== 'undefined' && recentLogs && recentLogs.length > 0) { %>
+                    <% recentLogs.forEach(function(item) { %>
+                        <tr>
+                            <td class="ps-4 py-2.5">
+                                <div class="fw-semibold text-dark"><%= formatDate(item.created_at, 'HH:mm:ss') %> WIB</div>
+                                <small class="text-muted" style="font-size: 0.72rem;"><%= diffForHumans(item.created_at) %></small>
+                            </td>
+                            <td class="py-2.5">
+                                <% if (item.type === 'ftp_upload') { %>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace" style="font-size: 0.7rem;">
+                                        <i class="bi bi-cloud-arrow-up"></i> FTP_UP
+                                    </span>
+                                <% } else if (item.type === 'ftp_error') { %>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace" style="font-size: 0.7rem;">
+                                        <i class="bi bi-exclamation-octagon"></i> FTP_ERR
+                                    </span>
+                                <% } else if (item.type === 'backup') { %>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace" style="font-size: 0.7rem;">
+                                        <i class="bi bi-archive"></i> BACKUP
+                                    </span>
+                                <% } else if (item.type === 'auth') { %>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 0.7rem;">
+                                        <i class="bi bi-key"></i> AUTH
+                                    </span>
+                                <% } else if (item.type === 'impersonate') { %>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace" style="font-size: 0.7rem;">
+                                        <i class="bi bi-person-fill-gear"></i> IMPERSON
+                                    </span>
+                                <% } else if (item.type === 'retention') { %>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace" style="font-size: 0.7rem;">
+                                        <i class="bi bi-trash"></i> RETENSI
+                                    </span>
+                                <% } else { %>
+                                    <span class="badge bg-light text-dark border font-monospace" style="font-size: 0.7rem;">
+                                        <i class="bi bi-cpu"></i> SISTEM
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td class="py-2.5">
+                                <% if (item.status === 'success') { %>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Sukses</span>
+                                <% } else if (item.status === 'error') { %>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Gagal</span>
+                                <% } else if (item.status === 'warning') { %>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Perhatian</span>
+                                <% } else { %>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">Info</span>
+                                <% } %>
+                            </td>
+                            <td class="py-2.5">
+                                <strong class="text-dark"><%= item.action %></strong>
+                                <div class="text-secondary small text-truncate" style="max-width: 450px;">
+                                    <%= item.description %>
+                                </div>
+                            </td>
+                            <td class="py-2.5">
+                                <% if (item.router_name) { %>
+                                    <div class="text-dark fw-semibold small">
+                                        <i class="bi bi-hdd-network text-primary"></i> <%= item.router_name %>
+                                    </div>
+                                <% } %>
+                                <% if (item.user_name) { %>
+                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                        <i class="bi bi-person"></i> <%= item.user_name %>
+                                    </div>
+                                <% } %>
+                                <% if (!item.router_name && !item.user_name) { %>
+                                    <span class="text-muted small">—</span>
+                                <% } %>
+                            </td>
+                            <td class="pe-4 py-2.5 text-end font-monospace small">
+                                <%= item.ip_address || '—' %>
+                            </td>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted small">
+                            <i class="bi bi-journal-x me-1"></i> Belum ada aktivitas sistem yang tercatat.
+                        </td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
     </div>
 </div>
 

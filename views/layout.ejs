@@ -390,6 +390,10 @@
                     <i class="bi bi-database-fill-gear"></i>
                     <span class="nav-text">Retensi & Storage</span>
                 </a>
+                <a href="/admin/logs" class="nav-link-custom <%= currentPath.startsWith('/admin/logs') ? 'active' : '' %>" data-menu-title="Audit & Log Sistem">
+                    <i class="bi bi-journal-text"></i>
+                    <span class="nav-text">Audit & Log Sistem</span>
+                </a>
             <% } else { %>
                 <div class="sidebar-heading">Tenant Menu</div>
                 <a href="/dashboard" class="nav-link-custom <%= currentPath === '/dashboard' ? 'active' : '' %>" data-menu-title="Dashboard Saya">

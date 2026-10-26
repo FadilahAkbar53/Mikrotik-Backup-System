@@ -13,7 +13,7 @@ storage/queue/*
 !storage/queue/.gitkeep
 
 # Logs
-logs/
+/logs/
 *.log
 npm-debug.log*
 

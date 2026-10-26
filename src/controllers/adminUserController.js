@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
+const activityLogService = require('../services/activityLogService');
 
 module.exports = {
     async index(req, res) {
@@ -199,6 +200,15 @@ module.exports = {
                 return res.redirect('/admin/users');
             }
 
+            activityLogService.log({
+                userId: req.session.user.id,
+                type: 'impersonate',
+                action: 'Mulai Impersonasi Tenant',
+                description: `Administrator '${req.session.user.name}' (#${req.session.user.id}) memulai impersonasi ke akun tenant '${targetUser.name}' (#${targetUser.id})`,
+                ipAddress: req.ip,
+                status: 'warning'
+            });
+
             req.session.impersonatorId = req.session.user.id;
             req.session.user = {
                 id: targetUser.id,
@@ -222,6 +232,7 @@ module.exports = {
             }
 
             const originalAdmin = await db('users').where('id', req.session.impersonatorId).first();
+            const impersonatedUserName = req.session.user ? req.session.user.name : 'Unknown';
             delete req.session.impersonatorId;
 
             if (originalAdmin) {
@@ -231,6 +242,15 @@ module.exports = {
                     email: originalAdmin.email,
                     role: originalAdmin.role
                 };
+
+                activityLogService.log({
+                    userId: originalAdmin.id,
+                    type: 'impersonate',
+                    action: 'Selesai Impersonasi Tenant',
+                    description: `Administrator '${originalAdmin.name}' mengakhiri impersonasi dari akun '${impersonatedUserName}' dan kembali ke sesi Admin`,
+                    ipAddress: req.ip,
+                    status: 'info'
+                });
             }
 
             req.flash('success', 'Kembali ke sesi Administrator Anda.');

@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
+const activityLogService = require('../services/activityLogService');
 
 module.exports = {
     showLogin(req, res) {
@@ -19,6 +20,13 @@ module.exports = {
 
             const user = await db('users').where({ email }).first();
             if (!user) {
+                activityLogService.log({
+                    type: 'auth',
+                    action: 'Percobaan Login Gagal',
+                    description: `Percobaan login gagal: email '${email}' tidak ditemukan di sistem`,
+                    ipAddress: req.ip,
+                    status: 'warning'
+                });
                 req.flash('error', 'Kredensial login tidak cocok dengan data kami.');
                 return res.redirect('/login');
             }
@@ -26,9 +34,26 @@ module.exports = {
             // Verify password using bcryptjs (supports Laravel $2y$ and $2a$ / $2b$ hashes)
             const isValid = bcrypt.compareSync(password, user.password);
             if (!isValid) {
+                activityLogService.log({
+                    userId: user.id,
+                    type: 'auth',
+                    action: 'Percobaan Login Gagal',
+                    description: `Percobaan login gagal untuk email '${email}': password salah`,
+                    ipAddress: req.ip,
+                    status: 'warning'
+                });
                 req.flash('error', 'Kredensial login tidak cocok dengan data kami.');
                 return res.redirect('/login');
             }
+
+            activityLogService.log({
+                userId: user.id,
+                type: 'auth',
+                action: 'Login Berhasil',
+                description: `Pengguna '${user.name}' (${user.email}) berhasil login dengan peran '${user.role}'`,
+                ipAddress: req.ip,
+                status: 'success'
+            });
 
             req.session.user = {
                 id: user.id,
@@ -108,6 +133,16 @@ module.exports = {
     },
 
     logout(req, res) {
+        if (req.session && req.session.user) {
+            activityLogService.log({
+                userId: req.session.user.id,
+                type: 'auth',
+                action: 'Pengguna Logout',
+                description: `Pengguna '${req.session.user.name}' mengakhiri sesi login`,
+                ipAddress: req.ip,
+                status: 'info'
+            });
+        }
         req.session.destroy(() => {
             res.redirect('/login');
         });

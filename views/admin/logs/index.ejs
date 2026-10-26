@@ -1,0 +1,332 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-start align-items-md-center mb-4 flex-column flex-md-row gap-3">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h3 class="fw-bold mb-0 text-dark">Audit & Log Sistem</h3>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-0.5 small">
+                Audit Trail & Monitoring
+            </span>
+        </div>
+        <p class="text-muted small mb-0">
+            Riwayat lengkap aktivitas background daemon, transmisi FTP MikroTik, autentikasi pengguna, dan penanganan kendala sistem.
+        </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-2 d-inline-flex align-items-center gap-1.5 shadow-sm px-3" onclick="window.location.reload()">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Segarkan</span>
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm rounded-2 d-inline-flex align-items-center gap-1.5 shadow-sm px-3" data-bs-toggle="modal" data-bs-target="#pruneLogsModal">
+            <i class="bi bi-trash3"></i>
+            <span>Pangkas Log Lama</span>
+        </button>
+    </div>
+</div>
+
+<!-- Metrics Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Total Log Tersimpan</div>
+            <h4 class="fw-bold text-dark mb-0"><%= stats.total %> <span class="fs-6 fw-normal text-muted">rekaman</span></h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Aktivitas FTP Daemon</div>
+            <h4 class="fw-bold text-primary mb-0"><%= stats.ftpCount %> <span class="fs-6 fw-normal text-muted">event</span></h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Autentikasi & Keamanan</div>
+            <h4 class="fw-bold text-dark mb-0"><%= stats.securityCount %> <span class="fs-6 fw-normal text-muted">sesi</span></h4>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100">
+            <div class="text-muted small text-uppercase fw-semibold mb-1" style="font-size: 0.72rem; letter-spacing: 0.03em;">Peringatan & Error</div>
+            <h4 class="fw-bold <%= stats.errorCount > 0 ? 'text-danger' : 'text-success' %> mb-0">
+                <%= stats.errorCount %> <span class="fs-6 fw-normal <%= stats.errorCount > 0 ? 'text-danger' : 'text-muted' %>"><%= stats.errorCount > 0 ? 'perlu diperiksa' : 'kondisi prima' %></span>
+            </h4>
+        </div>
+    </div>
+</div>
+
+<!-- Filter & Search Toolbar -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="/admin/logs" class="row g-2 align-items-center">
+            <div class="col-12 col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted border-end-0">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" name="search" class="form-control border-start-0" placeholder="Cari aksi, router, user, pesan, atau IP..." value="<%= currentSearch %>">
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="type" class="form-select form-select-sm">
+                    <option value="all" <%= currentType === 'all' ? 'selected' : '' %>>Semua Kategori Event</option>
+                    <option value="ftp_upload" <%= currentType === 'ftp_upload' ? 'selected' : '' %>>FTP: Transmisi Backup</option>
+                    <option value="ftp_error" <%= currentType === 'ftp_error' ? 'selected' : '' %>>FTP: Kegagalan & Error</option>
+                    <option value="backup" <%= currentType === 'backup' ? 'selected' : '' %>>Backup: Antrean & Verifikasi</option>
+                    <option value="auth" <%= currentType === 'auth' ? 'selected' : '' %>>Autentikasi: Login / Logout</option>
+                    <option value="impersonate" <%= currentType === 'impersonate' ? 'selected' : '' %>>Keamanan: Impersonasi Tenant</option>
+                    <option value="retention" <%= currentType === 'retention' ? 'selected' : '' %>>Storage: Pembersihan Retensi</option>
+                    <option value="system" <%= currentType === 'system' ? 'selected' : '' %>>Sistem & Server</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="status" class="form-select form-select-sm">
+                    <option value="all" <%= currentStatus === 'all' ? 'selected' : '' %>>Semua Status</option>
+                    <option value="success" <%= currentStatus === 'success' ? 'selected' : '' %>>Success (Berhasil)</option>
+                    <option value="info" <%= currentStatus === 'info' ? 'selected' : '' %>>Info (Informasi)</option>
+                    <option value="warning" <%= currentStatus === 'warning' ? 'selected' : '' %>>Warning (Peringatan)</option>
+                    <option value="error" <%= currentStatus === 'error' ? 'selected' : '' %>>Error (Kegagalan)</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm rounded-2 flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1">
+                    <i class="bi bi-funnel"></i>
+                    <span>Filter</span>
+                </button>
+                <% if (currentSearch || currentType !== 'all' || currentStatus !== 'all') { %>
+                    <a href="/admin/logs" class="btn btn-light border btn-sm rounded-2" title="Reset Filter">
+                        <i class="bi bi-x-circle text-muted"></i>
+                    </a>
+                <% } %>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Logs Table -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-header bg-white border-bottom border-light py-3 px-4 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text text-primary"></i>
+            <h5 class="fw-bold mb-0 text-dark">Daftar Rekaman Audit</h5>
+        </div>
+        <span class="badge bg-light text-muted border small">
+            Menampilkan <%= logs.length %> dari <%= total %> entri
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+            <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
+                <tr>
+                    <th class="ps-4 py-2.5" style="width: 170px;">Waktu</th>
+                    <th class="py-2.5" style="width: 130px;">Kategori</th>
+                    <th class="py-2.5" style="width: 100px;">Status</th>
+                    <th class="py-2.5">Aksi & Deskripsi</th>
+                    <th class="py-2.5" style="width: 180px;">Entitas Terkait</th>
+                    <th class="pe-4 py-2.5 text-end" style="width: 140px;">IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (logs && logs.length > 0) { %>
+                    <% logs.forEach(function(item) { %>
+                        <tr>
+                            <!-- Waktu -->
+                            <td class="ps-4 py-3">
+                                <div class="fw-semibold text-dark"><%= formatDate(item.created_at, 'DD/MM/YY HH:mm:ss') %></div>
+                                <small class="text-muted" style="font-size: 0.72rem;"><%= diffForHumans(item.created_at) %></small>
+                            </td>
+
+                            <!-- Kategori -->
+                            <td class="py-3">
+                                <% if (item.type === 'ftp_upload') { %>
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-cloud-arrow-up"></i> FTP_UP
+                                    </span>
+                                <% } else if (item.type === 'ftp_error') { %>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-exclamation-octagon"></i> FTP_ERR
+                                    </span>
+                                <% } else if (item.type === 'backup') { %>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-archive"></i> BACKUP
+                                    </span>
+                                <% } else if (item.type === 'auth') { %>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-key"></i> AUTH
+                                    </span>
+                                <% } else if (item.type === 'impersonate') { %>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-person-fill-gear"></i> IMPERSON
+                                    </span>
+                                <% } else if (item.type === 'retention') { %>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-trash"></i> RETENSI
+                                    </span>
+                                <% } else { %>
+                                    <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 font-monospace" style="font-size: 0.72rem;">
+                                        <i class="bi bi-cpu"></i> SISTEM
+                                    </span>
+                                <% } %>
+                            </td>
+
+                            <!-- Status -->
+                            <td class="py-3">
+                                <% if (item.status === 'success') { %>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Sukses
+                                    </span>
+                                <% } else if (item.status === 'error') { %>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                        <i class="bi bi-x-circle-fill me-1"></i>Gagal
+                                    </span>
+                                <% } else if (item.status === 'warning') { %>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Perhatian
+                                    </span>
+                                <% } else { %>
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
+                                        <i class="bi bi-info-circle-fill me-1"></i>Info
+                                    </span>
+                                <% } %>
+                            </td>
+
+                            <!-- Aksi & Deskripsi -->
+                            <td class="py-3">
+                                <strong class="text-dark d-block"><%= item.action %></strong>
+                                <div class="text-secondary small mt-0.5" style="max-width: 500px; word-break: break-word;">
+                                    <%= item.description %>
+                                </div>
+                                <% if (item.metadata) { %>
+                                    <details class="mt-1">
+                                        <summary class="text-primary small" style="cursor: pointer; font-size: 0.72rem;">Lihat Detail Teknis (JSON)</summary>
+                                        <pre class="bg-light p-2 rounded small mt-1 mb-0 border font-monospace text-dark" style="font-size: 0.7rem; max-height: 120px; overflow-y: auto;"><%= typeof item.metadata === 'string' ? item.metadata : JSON.stringify(item.metadata, null, 2) %></pre>
+                                    </details>
+                                <% } %>
+                            </td>
+
+                            <!-- Entitas Terkait -->
+                            <td class="py-3">
+                                <% if (item.router_name) { %>
+                                    <div class="d-flex align-items-center gap-1.5 text-dark fw-semibold" style="font-size: 0.82rem;">
+                                        <i class="bi bi-hdd-network text-primary"></i>
+                                        <span><%= item.router_name %></span>
+                                    </div>
+                                <% } %>
+                                <% if (item.user_name || item.user_email) { %>
+                                    <div class="small text-muted" style="font-size: 0.76rem;">
+                                        <i class="bi bi-person"></i> <%= item.user_name || item.user_email %>
+                                    </div>
+                                <% } %>
+                                <% if (!item.router_name && !item.user_name && !item.user_email) { %>
+                                    <span class="text-muted small">—</span>
+                                <% } %>
+                            </td>
+
+                            <!-- IP Address -->
+                            <td class="pe-4 py-3 text-end font-monospace small">
+                                <% if (item.ip_address) { %>
+                                    <span class="badge bg-light text-secondary border font-monospace" style="font-size: 0.74rem;">
+                                        <%= item.ip_address %>
+                                    </span>
+                                <% } else { %>
+                                    <span class="text-muted">—</span>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }); %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="text-center py-4">
+                                <div class="badge bg-light text-muted p-3 rounded-circle mb-3 border">
+                                    <i class="bi bi-journal-x fs-2"></i>
+                                </div>
+                                <h6 class="fw-bold text-dark mb-1">Tidak Ada Catatan Log</h6>
+                                <p class="text-muted small mb-0">Belum ada aktivitas yang sesuai dengan kriteria filter yang Anda pilih.</p>
+                            </div>
+                        </td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    <% if (totalPages > 1) { %>
+        <div class="card-footer bg-white border-top border-light py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="text-muted small">
+                Halaman <strong><%= page %></strong> dari <strong><%= totalPages %></strong>
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination pagination-sm mb-0">
+                    <!-- Tombol Prev -->
+                    <li class="page-item <%= page <= 1 ? 'disabled' : '' %>">
+                        <a class="page-link" href="/admin/logs?page=<%= page - 1 %>&type=<%= currentType %>&status=<%= currentStatus %>&search=<%= encodeURIComponent(currentSearch) %>">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+
+                    <!-- Halaman Nomor -->
+                    <% 
+                        const startPage = Math.max(1, page - 2);
+                        const endPage = Math.min(totalPages, page + 2);
+                        for (let p = startPage; p <= endPage; p++) { 
+                    %>
+                        <li class="page-item <%= p === page ? 'active' : '' %>">
+                            <a class="page-link" href="/admin/logs?page=<%= p %>&type=<%= currentType %>&status=<%= currentStatus %>&search=<%= encodeURIComponent(currentSearch) %>">
+                                <%= p %>
+                            </a>
+                        </li>
+                    <% } %>
+
+                    <!-- Tombol Next -->
+                    <li class="page-item <%= page >= totalPages ? 'disabled' : '' %>">
+                        <a class="page-link" href="/admin/logs?page=<%= page + 1 %>&type=<%= currentType %>&status=<%= currentStatus %>&search=<%= encodeURIComponent(currentSearch) %>">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    <% } %>
+</div>
+
+<!-- Modal Prune Logs -->
+<div class="modal fade" id="pruneLogsModal" tabindex="-1" aria-labelledby="pruneLogsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form action="/admin/logs/prune" method="POST">
+                <div class="modal-header border-bottom border-light">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-trash3 text-danger fs-5"></i>
+                        <h5 class="modal-title fw-bold text-dark" id="pruneLogsModalLabel">Pangkas Riwayat Log Lama</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">
+                        Pembersihan log akan menghapus permanen rekaman riwayat sistem yang lebih tua dari batas waktu yang dipilih untuk menghemat ruang database.
+                    </p>
+                    <div class="mb-3">
+                        <label for="prune_days" class="form-label fw-bold small text-dark">Hapus Catatan Log Lebih Lama Dari:</label>
+                        <select name="days" id="prune_days" class="form-select">
+                            <option value="7">7 Hari Terakhir</option>
+                            <option value="14">14 Hari Terakhir</option>
+                            <option value="30" selected>30 Hari Terakhir (Direkomendasikan)</option>
+                            <option value="60">60 Hari Terakhir</option>
+                            <option value="90">90 Hari Terakhir</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-warning py-2 px-3 small border-0 mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                        <span>Tindakan ini tidak dapat dibatalkan setelah diproses.</span>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-light">
+                    <button type="button" class="btn btn-light border btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm px-3">
+                        <i class="bi bi-trash3 me-1"></i> Pangkas Sekarang
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

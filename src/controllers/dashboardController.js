@@ -1,5 +1,7 @@
 const db = require('../config/database');
 const dayjs = require('dayjs');
+const serverHealthService = require('../services/serverHealthService');
+const activityLogService = require('../services/activityLogService');
 
 function formatBytes(bytes) {
     const b = parseInt(bytes, 10) || 0;
@@ -68,7 +70,7 @@ async function adminDashboard(req, res) {
     const threshold = dayjs().subtract(24, 'hour').format('YYYY-MM-DD HH:mm:ss');
     const sevenDaysAgo = dayjs().subtract(6, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
 
-    const [uRow, rStats, bStats, dailyRows, typeRows] = await Promise.all([
+    const [uRow, rStats, bStats, dailyRows, typeRows, serverHealth, recentLogs] = await Promise.all([
         db('users').count('* as count').first(),
         db('routers').select(
             db.raw('COUNT(*) as total_routers'),
@@ -92,7 +94,9 @@ async function adminDashboard(req, res) {
                 db.raw('COUNT(*) as count'),
                 db.raw('COALESCE(SUM(file_size), 0) as total_size')
             )
-            .groupBy('file_type')
+            .groupBy('file_type'),
+        serverHealthService.getFullHealthReport(),
+        activityLogService.getRecentLogs(8)
     ]);
 
     const totalUsers = parseInt(uRow.count, 10) || 0;
@@ -192,7 +196,9 @@ async function adminDashboard(req, res) {
         failedRoutersCount,
         chartData,
         recentBackups,
-        problemRouters
+        problemRouters,
+        serverHealth,
+        recentLogs
     });
 }
 
