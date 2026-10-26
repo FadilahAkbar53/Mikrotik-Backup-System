@@ -1,123 +1,94 @@
-# MikroTik Backup Monitoring System (Express.js)
+# MikBack — MikroTik Backup Monitoring System
 
-Aplikasi pemantauan dan pengelolaan backup otomatis MikroTik RouterOS berbasis **Express.js (Node.js)** dengan antarmuka modern (Bootstrap 5.3 + EJS), fitur retensi pintar (Rolling 4 Bulan & FIFO 7 Hari), manajemen multi-tenant/admin, impersonasi user, generator script otomatis, dan penampil script (.rsc) interaktif dengan fitur pencarian teks.
-
----
-
-## 🚀 Keunggulan Arsitektur Express.js vs Laravel
-
-| Aspek | Laravel (PHP) | Express.js (Node.js) | Peningkatan |
-|---|---|---|---|
-| **Koneksi Database** | Membuat TCP handshake baru tiap request HTTP | Connection Pooling Knex (2–10 pool) selalu terbuka | **Hemat ~400ms per request** |
-| **Response Time Dashboard** | ~8.000 ms (8 detik) | ~512 ms | **15.6x Lebih Cepat** |
-| **Response Time Login** | 4.000 - 11.000 ms | ~122 ms | **30x - 90x Lebih Cepat** |
-| **Response Time Retention** | ~13.000 ms | ~2.400 ms (Single SQL Aggregation) | **5.4x Lebih Cepat** |
-| **Compatibility Data** | Database MySQL yang sama | Menggunakan database MySQL & tabel yang sama 100% | **Zero Data Loss** |
-| **Password Hashing** | Laravel Bcrypt (`$2y$`) | Didukung penuh `bcryptjs` tanpa perlu reset password | **100% Kompatibel** |
+**MikBack** adalah platform pemantauan dan pengelolaan cadangan (*backup & disaster recovery*) otomatis untuk perangkat **MikroTik RouterOS** yang terpusat, modern, dan aman. Aplikasi ini memudahkan Network Administrator, ISP, pengelola jaringan kantor, serta pengusaha RT/RW Net dalam memastikan seluruh konfigurasi perangkat router selalu tercadangkan secara berkala dan siap dipulihkan kapan pun dibutuhkan.
 
 ---
 
-## 📁 Struktur Direktori
+## 🌟 Ikhtisar Aplikasi
 
-```text
-MikroTik Backup Monitoring System/
-├── package.json
-├── .env
-├── src/
-│   ├── server.js                        # Server entry point & Express middleware setup
-│   ├── config/
-│   │   └── database.js                  # Knex connection pool ke remote MySQL
-│   ├── controllers/
-│   │   ├── authController.js            # Login, register, logout
-│   │   ├── dashboardController.js       # Admin & Tenant dashboard view
-│   │   ├── routerController.js          # Router CRUD, token regen, detail 3-tab
-│   │   ├── backupController.js          # Download, in-browser preview, destroy
-│   │   ├── adminUserController.js       # User CRUD, role switch, impersonasi
-│   │   ├── adminScriptTemplateController.js # Template RouterOS script
-│   │   ├── adminRetentionController.js  # Kebijakan retensi, agregasi bulan, simulasi
-│   │   └── apiBackupController.js       # API MikroTik upload (/api/backup/upload)
-│   ├── services/
-│   │   ├── retentionService.js          # Algoritma 4 bulan + 7 hari FIFO + format
-│   │   └── scriptService.js             # Generator script RouterOS (.rsc)
-│   ├── middlewares/
-│   │   ├── auth.js                      # isAuthenticated, isGuest, isAdmin
-│   │   └── locals.js                    # Global view variables & helper functions
-│   ├── routes/
-│   │   ├── web.js                       # Rute web & panel admin
-│   │   └── api.js                       # Rute API router MikroTik
-│   └── cron/
-│       └── retentionCron.js             # Cron job harian (00:05 WIB)
-├── views/
-│   ├── layout.ejs                       # Layout utama (sidebar, navbar, toast, collapse)
-│   ├── auth/                            # Halaman Login & Register
-│   ├── dashboard/                       # Dashboard Admin & User
-│   ├── routers/                         # Index, Create, Edit, Show (Detail 3-tab)
-│   ├── backup/                          # Preview Script .rsc dengan Real-time Search
-│   ├── admin/                           # Users, Script Templates, Retention Management
-│   └── errors/                          # 404 page
-└── storage/
-    └── backups/                         # Direktori berkas fisik backup router
-```
+Dalam pengelolaan infrastruktur jaringan, kehilangan konfigurasi router akibat kerusakan perangkat keras, kesalahan konfigurasi (*human error*), atau serangan siber dapat menyebabkan *downtime* yang merugikan. 
+
+**MikBack** hadir sebagai solusi terpadu untuk:
+* Mengotomatiskan pengiriman berkas konfigurasi (`.rsc`) dan berkas biner (`.backup`) dari router ke server terpusat.
+* Memberikan visibilitas status *health check* dan jadwal backup terakhir dari seluruh router yang tersebar di berbagai lokasi.
+* Mempermudah inspeksi dan pencarian baris konfigurasi router langsung melalui antarmuka web tanpa harus membuka terminal MikroTik.
+* Merekapitulasi laporan aktivitas dan voucher hotspot jaringan secara terstruktur.
 
 ---
 
-## 🛠️ Cara Menjalankan Aplikasi
+## ✨ Fitur-Fitur Utama
 
-### 1. Masuk ke Folder Project
-```bash
-cd "D:\MyProjects\Server-Neko\Apps\MikroTik Backup Monitoring System"
-```
+### 1. 📊 Dashboard Ringkasan Eksekutif
+* **Statistik Cepat**: Informasi total router terdaftar, total berkas backup yang tersimpan, penggunaan kapasitas penyimpanan (*storage*), dan rasio router yang aktif melakukan backup.
+* **Aktivitas & Log Terbaru**: Pemantauan langsung terhadap backup yang baru saja masuk dan log aktivitas otentikasi.
+* **Indikator Kesehatan Server**: Ringkasan performa sistem secara berkala demi menjamin stabilitas layanan.
 
-### 2. Jalankan Mode Development (Auto-Reload saat file diedit)
-```bash
-npm run dev
-```
+### 2. 🖧 Manajemen Router Terpusat
+* **Daftar & Status Router**: Melihat status seluruh router, tanggal backup terakhir, status kepemilikan, dan token otentikasi unik tiap router.
+* **Filter & Pencarian Cepat**: Memudahkan pencarian router berdasarkan nama, status backup aktif/terlambat, dan pemilik.
+* **Ekspor Data**: Fitur ekspor daftar router beserta informasi pentingnya untuk kebutuhan dokumentasi dan pelaporan jaringan.
+* **One-Click Script Generator**: Pembuatan skrip otomatisasi RouterOS yang telah disesuaikan dengan konfigurasi dan token router Anda, siap disalin langsung ke terminal MikroTik.
 
-### 3. Atau Jalankan Mode Production
-```bash
-npm start
-```
+### 3. 💾 Eksplorasi & Pratinjau Berkas Backup
+* **Riwayat Backup Terstruktur**: Arsip berkas backup tersusun rapi berdasarkan router dan periode waktu.
+* **Dukungan Format Lengkap**: Mendukung berkas konfigurasi ekspor skrip (`.rsc`) dan berkas cadangan biner penuh (`.backup`).
+* **Pratinjau Script Interaktif**: Membaca isi konfigurasi teks (`.rsc`) langsung di browser lengkap dengan nomor baris otomatis dan fitur **pencarian kata kunci** secara instan.
+* **Unduh & Pemulihan Cepat**: Berkas backup dapat diunduh kapan saja saat dibutuhkan untuk proses *restore* perangkat.
 
-Buka browser di: **[http://localhost:3000](http://localhost:3000)**
+### 4. 📈 Laporan Voucher Hotspot Jaringan
+* **Rekapitulasi Penjualan Voucher**: Khusus router yang mengaktifkan fitur hotspot/Mikhmon, sistem menyediakan ringkasan voucher yang terjual.
+* **Filter Periode & Profil**: Filter data berdasarkan bulan kalender dan profil paket hotspot untuk mempermudah pembukuan pendapatan.
+
+### 5. 👤 Pengelolaan Profil Mandiri (*Self-Service*)
+* **Informasi Akun & Keamanan**: Pengguna dapat memperbarui nama, email, dan mengganti kata sandi secara mandiri.
+* **Panduan Format Penamaan**: Panduan ringkas bagi pengguna mengenai format nama berkas cadangan yang direkomendasikan agar arsip tersusun rapi.
+* **Unggah Manual**: Fasilitas pengunggahan berkas backup secara manual melalui browser jika router sedang berada di luar jangkauan jaringan otomatis.
+
+### 6. 🛡️ Keamanan & Perlindungan Akun
+* **Otentikasi Berlapis**: Sesi pengguna terlindungi dengan mekanisme anti-pembajakan sesi (*session hardening*).
+* **Kebijakan Penguncian Akun (*Account Lockout*)**: Akun otomatis dibekukan sementara jika terdeteksi kesalahan kata sandi beruntun demi melindungi akun dari upaya tebakan paksa (*brute-force*).
+* **Pembatasan Laju Akses (*Rate Limiting*)**: Mencegah beban berlebih (*flooding*) pada portal login dan endpoint unggah cadangan.
+* **Validasi Berkas Ketat**: Menolak berkas di luar format cadangan resmi MikroTik untuk memastikan integritas dan keamanan repositori.
+
+### 7. ⚙️ Panel Khusus Administrator (*Super Admin*)
+* **Manajemen Pengguna (Tenant Management)**: Menambah pengguna baru, mengatur hak akses, menonaktifkan (*suspend*) akun yang tidak aktif, membuka kunci akun pengguna yang terkunci, serta mereset kata sandi.
+* **Simulasi Akses Pengguna (*User Impersonation*)**: Membantu admin meninjau tampilan dan membantu kendala teknis pengguna tanpa perlu mengetahui kata sandi pengguna.
+* **Pengaturan Template Skrip Terpusat**: Mengelola template skrip RouterOS yang digunakan di seluruh sistem.
+* **Kebijakan Retensi Otomatis**: Mengatur batas masa simpan berkas cadangan agar kapasitas disk server tetap efisien, dilengkapi fitur simulasi pembersihan (*dry-run*).
+* **Audit System Log**: Rekaman riwayat aktivitas operasional penting demi transparansi dan audit keamanan.
+* **Pengaturan Umum Aplikasi**: Kendali terpusat untuk konfigurasi platform (nama aplikasi, perizinan registrasi publik, dll).
 
 ---
 
-## 🔑 Akun Login Bawaan
+## 🔑 Cara Akses & Navigasi Sistem
 
-| Role | Email | Password |
-|---|---|---|
-| **Super Admin** | `admin@mikrotik.test` | `password` |
-| **Tenant / User** | `user@mikrotik.test` | `password` |
+### 1. Akses Melalui Web Browser
+Aplikasi MikBack dapat diakses menggunakan peramban modern (Google Chrome, Mozilla Firefox, Microsoft Edge, Safari) baik melalui komputer desktop, laptop, maupun perangkat tablet/smartphone.
+
+### 2. Tingkatan Hak Akses (*User Roles*)
+Sistem memiliki 2 (dua) tingkatan peran dengan wewenang yang terisolasi:
+
+| Peran | Cakupan Wewenang |
+|---|---|
+| **Tenant / Pengguna Biasa** | • Mengelola router miliknya sendiri.<br>• Melihat riwayat dan mengunduh berkas backup miliknya.<br>• Melihat laporan hotspot routernya.<br>• Mengatur profil akun pribadi. |
+| **Administrator** | • Memiliki seluruh akses tenant.<br>• Mengelola seluruh pengguna dan seluruh router di sistem.<br>• Mengatur kebijakan retensi storage dan template skrip.<br>• Memantau log audit dan kesehatan server. |
 
 ---
 
-## ⚙️ Fitur yang Termigrasi Penuh (100% Feature Parity)
+## 🧭 Alur Penggunaan Dasar
 
-1. **Autentikasi & Otorisasi**:
-   - Login, Register, Logout dengan session cookie aman.
-   - Kompatibel langsung dengan password hash Laravel yang sudah tersimpan di database.
-   - Hak akses role: Admin vs User/Tenant.
-2. **Impersonasi User**:
-   - Admin dapat login sebagai user lain untuk melihat/mengelola routernya.
-   - Floating banner oranye di bagian atas untuk kembali ke akun Admin sewaktu-waktu.
-3. **Manajemen Router & Backup**:
-   - CRUD router lengkap, regenerasi token rahasia secara instan.
-   - Halaman detail router dengan 3 Tab:
-     - **Tab 1: Riwayat Backup** (Filter tanggal, unduh berkas, hapus).
-     - **Tab 2: Informasi Sistem** (Status hardware, OS, storage).
-     - **Tab 3: Generator Script** (Script RouterOS kustom siap copy-paste).
-4. **Pratinjau Script (.rsc) Interaktif**:
-   - Menampilkan isi konfigurasi export script dengan nomor baris otomatis.
-   - **Fitur Pencarian Teks Terintegrasi**: input pencarian, hitungan match (contoh `3 dari 12`), tombol Prev/Next highlight kuning, toggle case-sensitive, toggle regex, word wrap, dan tombol Salin Script.
-5. **Kebijakan Retensi Penyimpanan (Aturan 4 Bulan & 7 Hari FIFO)**:
-   - Menyimpan maksimal 4 bulan kalender terakhir.
-   - Dalam setiap bulan, hanya menyimpan backup dari 7 tanggal/hari paling baru (jika ada backup ke-8, tanggal terlama di bulan itu dihapus otomatis).
-   - Pruning real-time opsional saat backup masuk dari MikroTik (`retention_prune_on_upload`).
-   - Pruning otomatis terjadwal harian setiap pukul **00:05** via `node-cron`.
-   - Tabel visual Distribusi Penyimpanan Berdasarkan Bulan (6 bulan terakhir) dengan rincian ukuran MB dan jumlah berkas.
-   - Modal Simulasi Pembersihan (*Dry-Run*) sebelum eksekusi pembersihan nyata.
-6. **API Upload MikroTik RouterOS**:
-   - Endpoint: `POST /api/backup/upload`
-   - Header: `X-Router-Token: <TOKEN_ROUTER>`
-   - Form Data: `file` (file .rsc/.backup), `type` ('rsc' / 'binary').
-   - Otomatis mencatat ukuran, format tanggal, nama router, dan menjalankan auto-prune jika aktif.
+1. **Masuk ke Akun**: Buka halaman login aplikasi, masukkan email dan kata sandi yang telah terdaftar.
+2. **Daftarkan Router**: Buka menu **Router** > klik tombol **Tambah Router**, lalu isi nama dan keterangan router Anda.
+3. **Ambil Skrip Konfigurasi**: Buka detail router yang baru dibuat, masuk ke tab **Generator Script**, lalu salin skrip yang telah disediakan.
+4. **Pasang di MikroTik**: Buka terminal Winbox/SSH router MikroTik Anda, lalu tempel (*paste*) skrip tersebut. Skrip akan menjadwalkan backup berkala secara otomatis.
+5. **Pantau Cadangan**: Berkas cadangan yang terkirim dari MikroTik akan otomatis muncul di halaman detail router dan siap diunduh atau dipratinjau kapan pun dibutuhkan.
+
+---
+
+## 🔒 Kebijakan Keamanan & Privasi
+
+* Seluruh data konfigurasi router Anda tersimpan secara privat dan hanya dapat diakses oleh pemilik akun yang bersangkutan serta administrator berwenang.
+* Demi menjaga keamanan akun, gunakan kata sandi yang kuat dan jangan membagikan Token API Router Anda kepada pihak yang tidak berkepentingan.
+
+---
+*© MikBack — MikroTik Backup Monitoring System. Hak Cipta Dilindungi Undang-Undang.*
