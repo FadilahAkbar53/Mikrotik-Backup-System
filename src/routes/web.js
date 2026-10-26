@@ -22,11 +22,13 @@ router.get('/', (req, res) => {
     return res.redirect('/login');
 });
 
+const { authLimiter, passwordLimiter } = require('../middlewares/rateLimiter');
+
 // Guest Authentication Routes
 router.get('/login', isGuest, authController.showLogin);
-router.post('/login', isGuest, authController.login);
+router.post('/login', isGuest, authLimiter, authController.login);
 router.get('/register', isGuest, authController.showRegister);
-router.post('/register', isGuest, authController.register);
+router.post('/register', isGuest, authLimiter, authController.register);
 
 const profileController = require('../controllers/profileController');
 const multer = require('multer');
@@ -46,7 +48,7 @@ router.get('/dashboard', dashboardController.index);
 router.get('/profile', profileController.index);
 router.post('/profile', profileController.updateProfile);
 router.put('/profile', profileController.updateProfile);
-router.post('/profile/password', profileController.updatePassword);
+router.post('/profile/password', passwordLimiter, profileController.updatePassword);
 
 // Impersonation Exit
 router.post('/impersonate/leave', adminUserController.leaveImpersonate);

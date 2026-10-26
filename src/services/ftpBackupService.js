@@ -26,7 +26,20 @@ class RouterFtpFileSystem extends FtpSrv.FileSystem {
                 if (stats.size === 0) return;
 
                 const ext = path.extname(baseName).toLowerCase().replace('.', '');
-                const type = ext === 'backup' ? 'backup' : 'rsc';
+                if (!['backup', 'rsc'].includes(ext)) {
+                    console.warn(`[FTP Server] Rejected non-backup file upload '${baseName}' from router '${this.router.name}'`);
+                    try { if (fs.existsSync(fsPath)) fs.unlinkSync(fsPath); } catch (e) {}
+                    activityLogService.log({
+                        userId: this.router.user_id,
+                        routerId: this.router.id,
+                        type: 'ftp_error',
+                        action: 'FTP Ditolak: Format Tidak Diizinkan',
+                        description: `Transmisi berkas '${baseName}' ditolak karena format tidak diizinkan. Hanya berkas .backup atau .rsc yang diterima.`,
+                        status: 'warning'
+                    });
+                    return;
+                }
+                const type = ext;
 
                 console.log(`[FTP Server] Upload completed for router '${this.router.name}': ${baseName} (${stats.size} bytes)`);
 
@@ -113,13 +126,27 @@ class FtpBackupService {
         }
 
         try {
-            this.server = new FtpSrv({
+            const ftpOptions = {
                 url: `ftp://0.0.0.0:${port}`,
                 pasv_url: pasvUrl,
                 pasv_min: pasvMin,
                 pasv_max: pasvMax,
                 anonymous: false
-            });
+            };
+
+            if (process.env.FTP_TLS_KEY && process.env.FTP_TLS_CERT && fs.existsSync(process.env.FTP_TLS_KEY) && fs.existsSync(process.env.FTP_TLS_CERT)) {
+                try {
+                    ftpOptions.tls = {
+                        key: fs.readFileSync(process.env.FTP_TLS_KEY),
+                        cert: fs.readFileSync(process.env.FTP_TLS_CERT)
+                    };
+                    console.log('[FTP Server] TLS/FTPS encryption enabled with certificate.');
+                } catch (tlsErr) {
+                    console.warn('[FTP Server] Could not load TLS certificate:', tlsErr.message);
+                }
+            }
+
+            this.server = new FtpSrv(ftpOptions);
 
             this.server.on('login', async ({ username, password }, resolve, reject) => {
                 try {

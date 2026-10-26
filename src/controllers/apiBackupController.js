@@ -20,12 +20,24 @@ module.exports = {
                 });
             }
 
-            // 2. Authenticate router
-            const router = await db('routers').where({ api_token: token }).first();
+            // 2. Authenticate router & verify owner account status
+            const router = await db('routers')
+                .leftJoin('users', 'routers.user_id', 'users.id')
+                .select('routers.*', 'users.is_active as user_is_active')
+                .where({ 'routers.api_token': token })
+                .first();
+
             if (!router) {
                 return res.status(401).json({
                     status: 'error',
                     message: 'Invalid or unrecognized router API token.'
+                });
+            }
+
+            if (router.user_is_active === 0 || router.user_is_active === false) {
+                return res.status(403).json({
+                    status: 'error',
+                    message: 'Router owner account is suspended.'
                 });
             }
 

@@ -26,6 +26,8 @@
     "ejs": "^7.0.2",
     "express": "^5.3.0",
     "express-ejs-layouts": "^2.5.1",
+    "express-mysql-session": "^3.0.3",
+    "express-rate-limit": "^8.7.1",
     "express-session": "^1.19.0",
     "ftp-srv": "^4.6.3",
     "knex": "^3.3.0",

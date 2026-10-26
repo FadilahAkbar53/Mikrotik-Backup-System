@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const os = require('os');
 const apiBackupController = require('../controllers/apiBackupController');
+const { apiUploadLimiter } = require('../middlewares/rateLimiter');
 
 const upload = multer({
     dest: os.tmpdir(),
@@ -11,8 +12,8 @@ const upload = multer({
 
 // Endpoint upload backup MikroTik
 // Supports both POST /api/upload (standard Laravel path) and POST /api/backup/upload
-router.post('/upload', upload.single('file'), apiBackupController.upload);
-router.post('/backup/upload', upload.single('file'), apiBackupController.upload);
+router.post('/upload', apiUploadLimiter, upload.single('file'), apiBackupController.upload);
+router.post('/backup/upload', apiUploadLimiter, upload.single('file'), apiBackupController.upload);
 
 // Endpoint queue status monitoring
 router.get('/queue/stats', (req, res) => {

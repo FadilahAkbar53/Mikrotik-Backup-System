@@ -70,18 +70,26 @@ module.exports = {
                 status: 'success'
             });
 
-            req.session.user = {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            };
-
             const returnTo = req.session.returnTo || '/dashboard';
-            delete req.session.returnTo;
 
-            req.flash('success', `Selamat datang kembali, ${user.name}!`);
-            return res.redirect(returnTo);
+            // Regenerate session to prevent Session Fixation attacks
+            req.session.regenerate((err) => {
+                if (err) {
+                    console.error('Session regeneration error on login:', err);
+                    req.flash('error', 'Gagal memproses sesi login.');
+                    return res.redirect('/login');
+                }
+
+                req.session.user = {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                };
+
+                req.flash('success', `Selamat datang kembali, ${user.name}!`);
+                return res.redirect(returnTo);
+            });
         } catch (err) {
             console.error('Login error:', err);
             req.flash('error', 'Terjadi kesalahan sistem saat proses login: ' + err.message);
@@ -142,15 +150,24 @@ module.exports = {
             });
 
             const newUser = await db('users').where('id', newId).first();
-            req.session.user = {
-                id: newUser.id,
-                name: newUser.name,
-                email: newUser.email,
-                role: newUser.role
-            };
 
-            req.flash('success', 'Akun berhasil didaftarkan! Selamat datang di MikBack!');
-            return res.redirect('/dashboard');
+            req.session.regenerate((err) => {
+                if (err) {
+                    console.error('Session regeneration error on register:', err);
+                    req.flash('error', 'Akun berhasil dibuat, silakan login.');
+                    return res.redirect('/login');
+                }
+
+                req.session.user = {
+                    id: newUser.id,
+                    name: newUser.name,
+                    email: newUser.email,
+                    role: newUser.role
+                };
+
+                req.flash('success', 'Akun berhasil didaftarkan! Selamat datang di MikBack!');
+                return res.redirect('/dashboard');
+            });
         } catch (err) {
             console.error('Register error:', err);
             req.flash('error', 'Gagal mendaftarkan akun: ' + err.message);

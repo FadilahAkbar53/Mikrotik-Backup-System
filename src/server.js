@@ -48,16 +48,56 @@ app.use('/api', express.raw({ type: ['application/octet-stream', 'text/plain'], 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Session configuration
+// Persistent MySQL Session Store configuration
+const mysql = require('mysql2/promise');
+const MySQLStore = require('express-mysql-session')(session);
+
+const sessionPool = mysql.createPool({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USERNAME || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_DATABASE || 'mikrotik_backup',
+    connectTimeout: 20000,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000
+});
+
+const sessionStore = new MySQLStore({
+    clearExpired: true,
+    checkExpirationInterval: 15 * 60 * 1000, // Clean expired sessions every 15 mins
+    expiration: 7 * 24 * 60 * 60 * 1000, // 7 days
+    createDatabaseTable: true,
+    schema: {
+        tableName: 'express_sessions',
+        columnNames: {
+            session_id: 'session_id',
+            expires: 'expires',
+            data: 'data'
+        }
+    }
+}, sessionPool);
+
+sessionStore.on('error', (err) => {
+    console.error('[MySQL Session Store Error]:', err.message);
+});
+
+if (process.env.NODE_ENV === 'production' && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'mikrotik_secret_key_session_2026')) {
+    console.warn('[SECURITY WARNING] SESSION_SECRET is using default fallback in production. Please set a strong unique SESSION_SECRET in your .env file!');
+}
+
+// Session configuration with persistent MySQL storage and security flags
 app.use(session({
+    name: 'mikback_sid', // Obscure default connect.sid identifier
     secret: process.env.SESSION_SECRET || 'mikrotik_secret_key_session_2026',
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production' ? 'auto' : false
+        httpOnly: true, // Mitigate XSS attacks reading session cookie
+        sameSite: 'lax', // Protect against CSRF
+        secure: process.env.NODE_ENV === 'production' && (process.env.APP_URL?.startsWith('https') || false)
     }
 }));
 

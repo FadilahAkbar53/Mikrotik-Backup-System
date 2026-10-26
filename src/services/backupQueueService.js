@@ -95,14 +95,20 @@ class BackupQueueService {
     async enqueue({ router, type, file, rawBody, clientFilename }) {
         this.init();
 
+        const safeType = (type || '').toLowerCase();
+        if (!['backup', 'rsc'].includes(safeType)) {
+            throw new Error(`Invalid backup type: ${type}. Only 'backup' and 'rsc' are permitted.`);
+        }
+
         const jobId = `job_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
         const routerFolder = slugify(router.name) || `router_${router.id}`;
         
-        let originalName = clientFilename || `backup_${routerFolder}.${type}`;
+        let rawName = clientFilename || `backup_${routerFolder}.${safeType}`;
         if (file && file.originalname) {
-            originalName = file.originalname;
+            rawName = file.originalname;
         }
-        const cleanName = originalName.replace(/[^a-zA-Z0-9_\.-]/g, '_');
+        const baseNameOnly = path.basename(rawName);
+        const cleanName = baseNameOnly.replace(/[^a-zA-Z0-9_\.-]/g, '_');
         const stagedFileName = `${jobId}_${cleanName}`;
         const stagedFilePath = path.join(this.stagingDir, stagedFileName);
 
