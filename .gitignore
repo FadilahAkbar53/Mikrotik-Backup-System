@@ -22,3 +22,8 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# Private documentation & VPS Guides
+VPS_SETUP_AND_MIGRATION_GUIDE.md
+*_GUIDE.md
+
