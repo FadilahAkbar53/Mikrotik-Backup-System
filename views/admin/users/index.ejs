@@ -102,6 +102,7 @@
                     <option value="all" <%= (!currentStatus || currentStatus === 'all') ? 'selected' : '' %>>-- Semua Status --</option>
                     <option value="active" <%= currentStatus === 'active' ? 'selected' : '' %>>Aktif Saja</option>
                     <option value="suspended" <%= currentStatus === 'suspended' ? 'selected' : '' %>>Dinonaktifkan / Suspended</option>
+                    <option value="locked" <%= currentStatus === 'locked' ? 'selected' : '' %>>Terkunci (Lockout)</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -208,9 +209,14 @@
                                     <%= u.role === 'admin' ? 'Admin' : 'Tenant' %>
                                 </span>
                             </td>
-                            <!-- Saran 1: Tampilan Status -->
+                            <!-- Saran 1 & Item I: Tampilan Status -->
                             <td>
-                                <% if (isUserActive) { %>
+                                <% const isLocked = u.lockout_until && new Date(u.lockout_until) > new Date(); %>
+                                <% if (isLocked) { %>
+                                    <span class="badge bg-danger text-white border border-danger px-2 py-1" title="Terkunci karena kesalahan password">
+                                        <i class="bi bi-lock-fill me-1"></i> Terkunci
+                                    </span>
+                                <% } else if (isUserActive) { %>
                                     <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
                                         <i class="bi bi-check-circle-fill me-1"></i> Aktif
                                     </span>
@@ -276,6 +282,19 @@
                                                 <span>Reset Kata Sandi</span>
                                             </button>
                                         </li>
+
+                                        <% if (isLocked) { %>
+                                            <!-- Buka Kunci Akun (Item I) -->
+                                            <li>
+                                                <form action="/admin/users/<%= u.id %>/unlock" method="POST"
+                                                      onsubmit="return confirm('Buka kunci akun <%= u.name %> sekarang? Percobaan login gagal akan di-reset.');">
+                                                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 py-2 text-warning fw-semibold">
+                                                        <i class="bi bi-unlock-fill text-warning"></i>
+                                                        <span>Buka Kunci Akun (Unlock)</span>
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        <% } %>
 
                                         <li><hr class="dropdown-divider my-1"></li>
 

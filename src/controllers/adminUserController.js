@@ -17,14 +17,16 @@ module.exports = {
                 db.raw('COUNT(*) as total_users'),
                 db.raw("COUNT(CASE WHEN role = 'user' AND (is_active = 1 OR is_active IS NULL) THEN 1 END) as active_tenants"),
                 db.raw("COUNT(CASE WHEN is_active = 0 THEN 1 END) as suspended_users"),
-                db.raw("COUNT(CASE WHEN role = 'admin' THEN 1 END) as total_admins")
+                db.raw("COUNT(CASE WHEN role = 'admin' THEN 1 END) as total_admins"),
+                db.raw("COUNT(CASE WHEN lockout_until > NOW() THEN 1 END) as locked_users")
             ).first();
 
             const stats = {
                 total: parseInt(statsRow?.total_users || '0', 10),
                 activeTenants: parseInt(statsRow?.active_tenants || '0', 10),
                 suspended: parseInt(statsRow?.suspended_users || '0', 10),
-                admins: parseInt(statsRow?.total_admins || '0', 10)
+                admins: parseInt(statsRow?.total_admins || '0', 10),
+                locked: parseInt(statsRow?.locked_users || '0', 10)
             };
 
             // 2. Filtered User Query
@@ -45,6 +47,8 @@ module.exports = {
                 });
             } else if (status === 'suspended') {
                 query = query.where('users.is_active', 0);
+            } else if (status === 'locked') {
+                query = query.where('users.lockout_until', '>', db.fn.now());
             }
 
             if (role && role !== 'all') {
@@ -437,6 +441,39 @@ module.exports = {
         } catch (err) {
             delete req.session.impersonatorId;
             return res.redirect('/dashboard');
+        }
+    },
+
+    async unlockAccount(req, res) {
+        try {
+            const id = parseInt(req.params.id, 10);
+            const user = await db('users').where({ id }).first();
+            if (!user) {
+                req.flash('error', 'Pengguna tidak ditemukan.');
+                return res.redirect('/admin/users');
+            }
+
+            await db('users').where({ id }).update({
+                failed_login_count: 0,
+                lockout_until: null,
+                updated_at: db.fn.now()
+            });
+
+            await activityLogService.log({
+                userId: req.session.user.id,
+                type: 'admin',
+                action: 'Buka Kunci Akun Pengguna',
+                description: `Administrator '${req.session.user.name}' membuka kunci akun pengguna '${user.name}' (${user.email}) dan mereset kesalahan login`,
+                ipAddress: req.ip,
+                status: 'success'
+            });
+
+            req.flash('success', `Kunci akun pengguna '${user.name}' berhasil dibuka. Status akun kembali normal.`);
+            return res.redirect('/admin/users');
+        } catch (err) {
+            console.error('Error unlocking user account:', err);
+            req.flash('error', 'Gagal membuka kunci akun: ' + err.message);
+            return res.redirect('/admin/users');
         }
     }
 };

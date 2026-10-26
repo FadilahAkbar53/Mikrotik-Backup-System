@@ -94,6 +94,7 @@ router.get('/admin/users/:id/edit', adminUserController.edit);
 router.put('/admin/users/:id', adminUserController.update);
 router.post('/admin/users/:id/toggle-status', adminUserController.toggleStatus);
 router.post('/admin/users/:id/reset-password', adminUserController.resetPassword);
+router.post('/admin/users/:id/unlock', adminUserController.unlockAccount);
 router.delete('/admin/users/:id', adminUserController.destroy);
 
 // Admin Script Templates (Supports both /admin/templates and /admin/script-templates)

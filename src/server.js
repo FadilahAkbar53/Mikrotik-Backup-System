@@ -120,11 +120,36 @@ app.use((req, res) => {
     });
 });
 
-// Global Error Handler
+// Global Error Handler (Item D: Information Disclosure Protection)
 app.use((err, req, res, next) => {
-    console.error('Unhandled Application Error:', err);
-    res.status(500).send(`<h1>500 Internal Server Error</h1><pre>${err.stack || err.message}</pre>`);
+    console.error('[Unhandled Application Error]:', err);
+
+    const isDev = process.env.NODE_ENV !== 'production';
+    const statusCode = err.status || err.statusCode || 500;
+
+    // API or AJAX client response
+    if (req.path.startsWith('/api') || req.xhr || !req.accepts('html')) {
+        return res.status(statusCode).json({
+            status: 'error',
+            message: isDev ? (err.message || 'Internal Server Error') : 'Terjadi kesalahan internal pada server.',
+            ...(isDev ? { stack: err.stack } : {})
+        });
+    }
+
+    // Web browser UI response (prevents directory and credential leaks in production)
+    const isAuth = !!(req.session && req.session.user);
+    res.status(statusCode).render('errors/500', {
+        title: '500 - Terjadi Kesalahan Server',
+        layout: isAuth ? 'layout' : false,
+        error: isDev ? err : null,
+        isDev,
+        message: isDev ? (err.message || err.stack) : 'Sistem mengalami kendala saat memproses permintaan. Detail teknis disembunyikan demi keamanan sistem.'
+    });
 });
+
+// Initialize automatic database schema verification
+const schemaMigrationService = require('./services/schemaMigrationService');
+schemaMigrationService.init();
 
 // Start scheduled background retention task
 initRetentionCron();

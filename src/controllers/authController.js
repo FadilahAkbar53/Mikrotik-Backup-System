@@ -32,19 +32,76 @@ module.exports = {
                 return res.redirect('/login');
             }
 
-            // Verify password using bcryptjs (supports Laravel $2y$ and $2a$ / $2b$ hashes)
-            const isValid = bcrypt.compareSync(password, user.password);
-            if (!isValid) {
+            // Check if user is currently locked out (Item I: Account Lockout Policy)
+            const now = new Date();
+            if (user.lockout_until && new Date(user.lockout_until) > now) {
+                const remainingMinutes = Math.ceil((new Date(user.lockout_until) - now) / 60000);
                 activityLogService.log({
                     userId: user.id,
-                    type: 'auth',
-                    action: 'Percobaan Login Gagal',
-                    description: `Percobaan login gagal untuk email '${email}': password salah`,
+                    type: 'auth_lockout',
+                    action: 'Login Ditolak: Akun Terkunci',
+                    description: `Upaya login ke akun '${user.name}' (${user.email}) ditolak karena akun sedang dikunci sementara (${remainingMinutes} menit tersisa)`,
                     ipAddress: req.ip,
                     status: 'warning'
                 });
-                req.flash('error', 'Kredensial login tidak cocok dengan data kami.');
+                req.flash('error', `Akun Anda sedang dikunci sementara demi keamanan karena terlalu banyak kesalahan password. Silakan coba lagi dalam ${remainingMinutes} menit.`);
                 return res.redirect('/login');
+            }
+
+            // Verify password using bcryptjs (supports Laravel $2y$ and $2a$ / $2b$ hashes)
+            const isValid = bcrypt.compareSync(password, user.password);
+            if (!isValid) {
+                const MAX_FAILED_ATTEMPTS = 5;
+                const LOCKOUT_MINUTES = 15;
+                const newFailedCount = (user.failed_login_count || 0) + 1;
+
+                if (newFailedCount >= MAX_FAILED_ATTEMPTS) {
+                    const lockoutUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+                    await db('users').where({ id: user.id }).update({
+                        failed_login_count: newFailedCount,
+                        lockout_until: lockoutUntil,
+                        updated_at: db.fn.now()
+                    });
+
+                    activityLogService.log({
+                        userId: user.id,
+                        type: 'auth_lockout',
+                        action: 'Akun Terkunci Otomatis',
+                        description: `Akun '${user.name}' (${user.email}) otomatis dikunci sementara selama 15 menit setelah 5 kali salah memasukkan kata sandi berturut-turut`,
+                        ipAddress: req.ip,
+                        status: 'warning'
+                    });
+
+                    req.flash('error', `Akun Anda telah dikunci sementara selama 15 menit karena 5 kali percobaan login yang salah berturut-turut. Hubungi administrator jika membutuhkan bantuan.`);
+                    return res.redirect('/login');
+                } else {
+                    await db('users').where({ id: user.id }).update({
+                        failed_login_count: newFailedCount,
+                        updated_at: db.fn.now()
+                    });
+
+                    const remainingTries = MAX_FAILED_ATTEMPTS - newFailedCount;
+                    activityLogService.log({
+                        userId: user.id,
+                        type: 'auth',
+                        action: 'Percobaan Login Gagal',
+                        description: `Percobaan login gagal untuk email '${email}': password salah (Percobaan ${newFailedCount}/${MAX_FAILED_ATTEMPTS})`,
+                        ipAddress: req.ip,
+                        status: 'warning'
+                    });
+
+                    req.flash('error', `Kredensial login tidak cocok. Sisa percobaan: ${remainingTries} kali lagi sebelum akun dikunci sementara.`);
+                    return res.redirect('/login');
+                }
+            }
+
+            // Password is valid - reset failed attempts and lockout timestamp
+            if ((user.failed_login_count || 0) > 0 || user.lockout_until) {
+                await db('users').where({ id: user.id }).update({
+                    failed_login_count: 0,
+                    lockout_until: null,
+                    updated_at: db.fn.now()
+                });
             }
 
             // Check if account is suspended / inactive
