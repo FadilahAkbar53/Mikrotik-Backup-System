@@ -259,9 +259,10 @@
                         </div>
                         <span class="badge bg-primary-subtle text-primary rounded-pill"><%= profileBreakdown.length %> Profil</span>
                     </div>
-                    <div class="table-responsive">
+                    <% const isProfileScrollable = profileBreakdown && profileBreakdown.length > 30; %>
+                    <div class="table-responsive <%= isProfileScrollable ? 'table-scroll-30' : '' %>">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light">
+                            <thead class="table-light <%= isProfileScrollable ? 'sticky-top' : '' %>">
                                 <tr class="text-uppercase small text-muted">
                                     <th>Profil Voucher</th>
                                     <th class="text-center">Terjual</th>
@@ -331,10 +332,11 @@
                     <div class="card-body p-0">
                         <div class="tab-content" id="breakdownTabContent">
                             <!-- TAB: PER BULAN -->
+                            <% const isMonthlyScrollable = monthlyBreakdown && monthlyBreakdown.length > 30; %>
                             <div class="tab-pane fade <%= filters.date ? '' : 'show active' %>" id="tab-month" role="tabpanel">
-                                <div class="table-responsive">
+                                <div class="table-responsive <%= isMonthlyScrollable ? 'table-scroll-30' : '' %>">
                                     <table class="table table-hover align-middle mb-0">
-                                        <thead class="table-light">
+                                        <thead class="table-light <%= isMonthlyScrollable ? 'sticky-top' : '' %>">
                                             <tr class="text-uppercase small text-muted">
                                                 <th>Bulan</th>
                                                 <th class="text-center">Hari Aktif</th>
@@ -373,10 +375,11 @@
                             </div>
 
                             <!-- TAB: PER TANGGAL -->
+                            <% const isDailyScrollable = dailyBreakdown && dailyBreakdown.length > 30; %>
                             <div class="tab-pane fade <%= filters.date ? 'show active' : '' %>" id="tab-daily" role="tabpanel">
-                                <div class="table-responsive">
+                                <div class="table-responsive <%= isDailyScrollable ? 'table-scroll-30' : '' %>">
                                     <table class="table table-hover align-middle mb-0">
-                                        <thead class="table-light">
+                                        <thead class="table-light <%= isDailyScrollable ? 'sticky-top' : '' %>">
                                             <tr class="text-uppercase small text-muted">
                                                 <th>Tanggal</th>
                                                 <th class="text-center">Terjual</th>
