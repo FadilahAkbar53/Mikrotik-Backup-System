@@ -14,12 +14,9 @@ const adminLogController = require('../controllers/adminLogController');
 const adminSettingController = require('../controllers/adminSettingController');
 const reportController = require('../controllers/reportController');
 
-// Root redirect
+// Root redirect (redirects to /dashboard where isAuthenticated validates session lifetime)
 router.get('/', (req, res) => {
-    if (req.session && req.session.user) {
-        return res.redirect('/dashboard');
-    }
-    return res.redirect('/login');
+    return res.redirect('/dashboard');
 });
 
 const { authLimiter, passwordLimiter } = require('../middlewares/rateLimiter');

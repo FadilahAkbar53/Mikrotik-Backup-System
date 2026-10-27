@@ -32,6 +32,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <% } %>
+        <% if (flash.info && flash.info.length) { %>
+            <div class="alert alert-info alert-dismissible fade show small" role="alert">
+                <i class="bi bi-info-circle-fill me-1"></i> <%= flash.info[0] %>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <% } %>
         <% if (flash.success && flash.success.length) { %>
             <div class="alert alert-success alert-dismissible fade show small" role="alert">
                 <i class="bi bi-check-circle-fill me-1"></i> <%= flash.success[0] %>

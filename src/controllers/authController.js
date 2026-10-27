@@ -5,6 +5,15 @@ const settingService = require('../services/settingService');
 
 module.exports = {
     showLogin(req, res) {
+        if (req.query.expired === 'idle') {
+            const idleMins = parseInt(process.env.SESSION_IDLE_TIMEOUT_MINUTES || '120', 10);
+            const timeText = idleMins >= 60 ? `${(idleMins / 60).toFixed(idleMins % 60 === 0 ? 0 : 1)} jam` : `${idleMins} menit`;
+            req.flash('info', `Sesi Anda telah berakhir secara otomatis karena tidak ada aktivitas selama lebih dari ${timeText}. Silakan login kembali demi keamanan akun.`);
+        } else if (req.query.expired === 'max') {
+            req.flash('info', 'Batas waktu maksimal sesi login Anda telah selesai. Silakan login kembali demi keamanan.');
+        } else if (req.query.expired === 'suspended') {
+            req.flash('error', 'Akun Anda telah dinonaktifkan oleh Administrator.');
+        }
         res.render('auth/login', {
             title: 'Login',
             layout: false
@@ -143,6 +152,8 @@ module.exports = {
                     email: user.email,
                     role: user.role
                 };
+                req.session.loginAt = Date.now();
+                req.session.lastActivity = Date.now();
 
                 req.flash('success', `Selamat datang kembali, ${user.name}!`);
                 return res.redirect(returnTo);
@@ -221,6 +232,8 @@ module.exports = {
                     email: newUser.email,
                     role: newUser.role
                 };
+                req.session.loginAt = Date.now();
+                req.session.lastActivity = Date.now();
 
                 req.flash('success', 'Akun berhasil didaftarkan! Selamat datang di MikBack!');
                 return res.redirect('/dashboard');

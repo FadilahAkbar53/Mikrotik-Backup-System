@@ -63,10 +63,13 @@ const sessionPool = mysql.createPool({
     keepAliveInitialDelay: 10000
 });
 
+const sessionIdleMinutes = parseInt(process.env.SESSION_IDLE_TIMEOUT_MINUTES || '120', 10);
+const sessionIdleMs = sessionIdleMinutes * 60 * 1000;
+
 const sessionStore = new MySQLStore({
     clearExpired: true,
-    checkExpirationInterval: 15 * 60 * 1000, // Clean expired sessions every 15 mins
-    expiration: 7 * 24 * 60 * 60 * 1000, // 7 days
+    checkExpirationInterval: 5 * 60 * 1000, // Clean expired sessions every 5 mins
+    expiration: sessionIdleMs, // Purge idle sessions from database
     createDatabaseTable: true,
     schema: {
         tableName: 'express_sessions',
@@ -93,8 +96,9 @@ app.use(session({
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Reset cookie expiration on every active request
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+        maxAge: sessionIdleMs, // Automatically expires after inactivity
         httpOnly: true, // Mitigate XSS attacks reading session cookie
         sameSite: 'lax', // Protect against CSRF
         secure: process.env.NODE_ENV === 'production' && (process.env.APP_URL?.startsWith('https') || false)
