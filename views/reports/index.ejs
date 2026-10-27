@@ -118,7 +118,7 @@
                     </div>
 
                     <div class="col-md-2 d-flex align-items-end pt-3 pt-md-0">
-                        <% if (filters.month || filters.profile || filters.search) { %>
+                        <% if (filters.month || filters.profile || filters.date || filters.search) { %>
                             <a href="/reports?router_id=<%= selectedRouterId %>" class="btn btn-sm btn-outline-danger w-100" title="Hapus Semua Filter">
                                 <i class="bi bi-x-circle me-1"></i> Reset Filter
                             </a>
@@ -131,6 +131,18 @@
                 </form>
             </div>
         </div>
+
+        <% if (filters.date) { %>
+            <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between mb-3 shadow-sm border-0">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar-check-fill text-primary"></i>
+                    <span>Menampilkan transaksi untuk tanggal: <strong><%= filters.date %></strong></span>
+                </div>
+                <a href="/reports?router_id=<%= selectedRouterId %><%= filters.month ? '&month=' + encodeURIComponent(filters.month) : '' %><%= filters.profile ? '&profile=' + encodeURIComponent(filters.profile) : '' %>" class="btn btn-sm btn-outline-primary py-0 px-2" title="Hapus filter tanggal">
+                    <i class="bi bi-x-circle me-1"></i> Tampilkan Semua Tanggal
+                </a>
+            </div>
+        <% } %>
 
         <!-- 4 KPI Stat Cards -->
         <div class="row g-3 mb-4">
@@ -299,24 +311,27 @@
             <!-- Right Column: Akumulasi Per Bulan & Per Tanggal -->
             <div class="col-lg-6">
                 <div class="card shadow-sm border-0 h-100">
-                    <div class="card-header bg-white py-2 px-3">
+                    <div class="card-header bg-white py-2 px-3 d-flex justify-content-between align-items-center">
                         <ul class="nav nav-pills card-header-pills" id="breakdownPills" role="tablist">
                             <li class="nav-item">
-                                <button class="nav-link active py-1.5 px-3 small fw-semibold" id="tab-month-btn" data-bs-toggle="pill" data-bs-target="#tab-month" type="button">
+                                <button class="nav-link <%= filters.date ? '' : 'active' %> py-1.5 px-3 small fw-semibold" id="tab-month-btn" data-bs-toggle="pill" data-bs-target="#tab-month" type="button">
                                     <i class="bi bi-calendar3 me-1"></i> Per Bulan
                                 </button>
                             </li>
                             <li class="nav-item">
-                                <button class="nav-link py-1.5 px-3 small fw-semibold" id="tab-daily-btn" data-bs-toggle="pill" data-bs-target="#tab-daily" type="button">
+                                <button class="nav-link <%= filters.date ? 'active' : '' %> py-1.5 px-3 small fw-semibold" id="tab-daily-btn" data-bs-toggle="pill" data-bs-target="#tab-daily" type="button">
                                     <i class="bi bi-calendar-date me-1"></i> Per Tanggal
                                 </button>
                             </li>
                         </ul>
+                        <span class="badge bg-primary-subtle text-primary rounded-pill" id="breakdownPillsBadge">
+                            <%= filters.date ? (dailyBreakdown.length + ' Tanggal') : (monthlyBreakdown.length + ' Bulan') %>
+                        </span>
                     </div>
                     <div class="card-body p-0">
                         <div class="tab-content" id="breakdownTabContent">
                             <!-- TAB: PER BULAN -->
-                            <div class="tab-pane fade show active" id="tab-month" role="tabpanel">
+                            <div class="tab-pane fade <%= filters.date ? '' : 'show active' %>" id="tab-month" role="tabpanel">
                                 <div class="table-responsive">
                                     <table class="table table-hover align-middle mb-0">
                                         <thead class="table-light">
@@ -358,10 +373,10 @@
                             </div>
 
                             <!-- TAB: PER TANGGAL -->
-                            <div class="tab-pane fade" id="tab-daily" role="tabpanel">
-                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <div class="tab-pane fade <%= filters.date ? 'show active' : '' %>" id="tab-daily" role="tabpanel">
+                                <div class="table-responsive">
                                     <table class="table table-hover align-middle mb-0">
-                                        <thead class="table-light sticky-top">
+                                        <thead class="table-light">
                                             <tr class="text-uppercase small text-muted">
                                                 <th>Tanggal</th>
                                                 <th class="text-center">Terjual</th>
@@ -371,9 +386,11 @@
                                         <tbody>
                                             <% if (dailyBreakdown && dailyBreakdown.length > 0) { %>
                                                 <% dailyBreakdown.forEach(function(d) { %>
-                                                    <tr>
+                                                    <tr class="<%= filters.date === d.saleDate ? 'table-primary' : '' %>">
                                                         <td class="fw-semibold">
-                                                            <i class="bi bi-calendar-event text-secondary me-1"></i> <%= d.saleDate %>
+                                                            <a href="/reports?router_id=<%= selectedRouterId %>&date=<%= d.saleDate %><%= filters.profile ? '&profile=' + encodeURIComponent(filters.profile) : '' %><%= filters.month ? '&month=' + encodeURIComponent(filters.month) : '' %>" class="fw-bold text-decoration-none text-dark d-inline-flex align-items-center" title="Klik untuk filter transaksi tanggal <%= d.saleDate %>">
+                                                                <i class="bi bi-calendar-event text-secondary me-1.5"></i> <%= d.saleDate %>
+                                                            </a>
                                                         </td>
                                                         <td class="text-center">
                                                             <span class="badge bg-light text-dark border px-2 py-1"><%= d.totalVouchers.toLocaleString('id-ID') %></span>
@@ -638,5 +655,14 @@
                 }
             });
         }
+
+        document.getElementById('tab-daily-btn')?.addEventListener('shown.bs.tab', function () {
+            const badge = document.getElementById('breakdownPillsBadge');
+            if (badge) badge.textContent = '<%= typeof dailyBreakdown !== "undefined" && dailyBreakdown ? dailyBreakdown.length : 0 %> Tanggal';
+        });
+        document.getElementById('tab-month-btn')?.addEventListener('shown.bs.tab', function () {
+            const badge = document.getElementById('breakdownPillsBadge');
+            if (badge) badge.textContent = '<%= typeof monthlyBreakdown !== "undefined" && monthlyBreakdown ? monthlyBreakdown.length : 0 %> Bulan';
+        });
     });
 </script>

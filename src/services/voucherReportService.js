@@ -329,6 +329,9 @@ class VoucherReportService {
         if (filters.profile) {
             query = query.where('profile', filters.profile);
         }
+        if (filters.date) {
+            query = query.where('sale_date', filters.date);
+        }
 
         const stats = await query.clone().select(
             db.raw('COALESCE(SUM(price), 0) as total_revenue'),
@@ -428,7 +431,7 @@ class VoucherReportService {
     /**
      * Get Daily Breakdown (Per Tanggal)
      */
-    async getDailyBreakdown(routerId, filters = {}, limit = 31) {
+    async getDailyBreakdown(routerId, filters = {}, limit = null) {
         let query = db('voucher_reports').where('router_id', routerId);
 
         if (filters.month) {
@@ -438,15 +441,20 @@ class VoucherReportService {
             query = query.where('profile', filters.profile);
         }
 
-        const rows = await query
+        query = query
             .select(
                 'sale_date',
                 db.raw('COUNT(id) as total_vouchers'),
                 db.raw('SUM(price) as total_revenue')
             )
             .groupBy('sale_date')
-            .orderBy('sale_date', 'desc')
-            .limit(limit);
+            .orderBy('sale_date', 'desc');
+
+        if (limit) {
+            query = query.limit(limit);
+        }
+
+        const rows = await query;
 
         return rows.map(r => ({
             saleDate: r.sale_date,

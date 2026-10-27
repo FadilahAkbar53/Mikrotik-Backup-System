@@ -64,13 +64,14 @@ const reportController = {
             }
 
             // Filter parameters
+            const date = (req.query.date || '').trim();
             const month = (req.query.month || '').trim();
             const profile = (req.query.profile || '').trim();
             const search = (req.query.search || req.query.q || '').trim();
             const page = Math.max(1, parseInt(req.query.page, 10) || 1);
             const limit = 20;
 
-            const filters = { month, profile, search };
+            const filters = { date, month, profile, search };
 
             // Fetch report aggregations
             const [
@@ -85,7 +86,7 @@ const reportController = {
                 voucherReportService.getReportSummary(selectedRouterId, filters),
                 voucherReportService.getMonthlyBreakdown(selectedRouterId, { profile }),
                 voucherReportService.getProfileBreakdown(selectedRouterId, { month }),
-                voucherReportService.getDailyBreakdown(selectedRouterId, filters, 31),
+                voucherReportService.getDailyBreakdown(selectedRouterId, filters, null),
                 voucherReportService.getTransactions(selectedRouterId, filters, page, limit),
                 voucherReportService.getAvailableMonths(selectedRouterId),
                 voucherReportService.getAvailableProfiles(selectedRouterId)

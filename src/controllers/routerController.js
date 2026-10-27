@@ -310,12 +310,13 @@ module.exports = {
 
             let reportData = null;
             if (tab === 'reports') {
+                const reportDate = (req.query.date || '').trim();
                 const reportMonth = (req.query.month || '').trim();
                 const reportProfile = (req.query.profile || '').trim();
                 const reportSearch = (req.query.report_search || req.query.q || '').trim();
                 const reportPage = Math.max(1, parseInt(req.query.report_page, 10) || 1);
                 const reportLimit = 15;
-                const reportFilters = { month: reportMonth, profile: reportProfile, search: reportSearch };
+                const reportFilters = { date: reportDate, month: reportMonth, profile: reportProfile, search: reportSearch };
 
                 const [
                     reportSummary,
@@ -329,7 +330,7 @@ module.exports = {
                     voucherReportService.getReportSummary(id, reportFilters),
                     voucherReportService.getMonthlyBreakdown(id, { profile: reportProfile }),
                     voucherReportService.getProfileBreakdown(id, { month: reportMonth }),
-                    voucherReportService.getDailyBreakdown(id, reportFilters, 31),
+                    voucherReportService.getDailyBreakdown(id, reportFilters, null),
                     voucherReportService.getTransactions(id, reportFilters, reportPage, reportLimit),
                     voucherReportService.getAvailableMonths(id),
                     voucherReportService.getAvailableProfiles(id)
