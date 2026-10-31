@@ -667,6 +667,12 @@
                             <button type="submit" class="btn btn-primary btn-sm px-2.5">Cari</button>
                         </div>
                     </form>
+                    <% if (backups && backups.length > 0) { %>
+                        <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 shadow-sm rounded-2" id="btnToggleDeleteMode" onclick="toggleDeleteMode()" title="Pilih beberapa berkas backup untuk dihapus sekaligus">
+                            <i class="bi bi-trash"></i>
+                            <span id="toggleDeleteText">Hapus Masal</span>
+                        </button>
+                    <% } %>
                     <button type="button" class="btn btn-sm btn-primary text-white d-inline-flex align-items-center gap-1 shadow-sm rounded-2" data-bs-toggle="modal" data-bs-target="#uploadManualBackupModal">
                         <i class="bi bi-cloud-arrow-up-fill"></i>
                         <span>Upload Manual</span>
@@ -677,10 +683,34 @@
                 </div>
             </div>
 
+            <!-- Bulk Delete Action Bar (Hanya muncul saat mode hapus aktif) -->
+            <div id="bulkDeleteToolbar" class="d-none align-items-center justify-content-between p-2.5 px-4 bg-danger-subtle border-top border-bottom border-danger-subtle">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge bg-danger text-white rounded-pill px-2.5 py-1" id="selectedCountBadge">0</span>
+                    <span class="fw-semibold text-danger small">berkas backup dipilih</span>
+                    <span class="text-muted small">|</span>
+                    <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-primary small fw-semibold" onclick="selectAllBackups(true)">Pilih Semua</button>
+                    <span class="text-muted small">&bull;</span>
+                    <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-secondary small" onclick="selectAllBackups(false)">Batal Pilih</button>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-danger btn-sm d-inline-flex align-items-center gap-1 shadow-sm px-3" id="btnSubmitBulkDelete" disabled onclick="confirmBulkDelete()">
+                        <i class="bi bi-trash-fill"></i>
+                        <span>Hapus Terpilih (<span id="deleteBtnCount">0</span>)</span>
+                    </button>
+                    <button type="button" class="btn btn-light border btn-sm text-secondary px-2.5" onclick="toggleDeleteMode(false)">
+                        Batal
+                    </button>
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light text-muted small text-uppercase" style="font-size: 0.72rem;">
                         <tr>
+                            <th class="ps-4 py-3 bulk-checkbox-col d-none" style="width: 44px;">
+                                <input type="checkbox" class="form-check-input" id="masterCheckbox" title="Pilih Semua Berkas" onchange="toggleSelectAllRows(this.checked)">
+                            </th>
                             <th class="ps-4 py-3">
                                 <a href="/routers/<%= router.id %>?tab=backups&sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= searchParam %>" 
                                    class="text-decoration-none <%= currentSort === 'name' ? 'fw-bold text-primary' : 'text-secondary' %> d-inline-flex align-items-center gap-1.5" 
@@ -724,7 +754,10 @@
                     <tbody>
                         <% if (backups.length > 0) { %>
                             <% backups.forEach(function(b) { %>
-                                <tr>
+                                <tr id="row-backup-<%= b.id %>">
+                                    <td class="ps-4 py-3 bulk-checkbox-col d-none" style="width: 44px;">
+                                        <input type="checkbox" class="form-check-input backup-checkbox" value="<%= b.id %>" onchange="updateSelectionCount()">
+                                    </td>
                                     <td class="ps-4 py-3">
                                         <div class="d-flex align-items-center gap-2">
                                             <i class="bi <%= b.file_type === 'rsc' ? 'bi-file-earmark-code text-info' : 'bi-file-earmark-binary text-primary' %> fs-5"></i>
@@ -733,7 +766,7 @@
                                     </td>
                                     <td class="py-3">
                                         <span class="badge <%= b.file_type === 'rsc' ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle' %> text-uppercase fw-semibold" style="font-size: 0.7rem;">
-                                            .<%= b.file_type %>
+                                             .<%= b.file_type %>
                                         </span>
                                     </td>
                                     <td class="py-3 text-secondary small font-monospace">
@@ -764,7 +797,7 @@
                             <% }); %>
                         <% } else { %>
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted small">
+                                <td colspan="6" class="text-center py-5 text-muted small">
                                     <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary opacity-50"></i>
                                     <% if (typeof search !== 'undefined' && search) { %>
                                         <p class="mb-2">Tidak ditemukan berkas backup dengan kata kunci <strong>"<%= search %>"</strong>.</p>
@@ -801,6 +834,36 @@
             <% } %>
         </div>
     <% } %>
+</div>
+
+<!-- Bulk Delete Backups Confirmation Modal -->
+<div class="modal fade" id="bulkDeleteBackupsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white py-3">
+                <h5 class="modal-title fw-bold fs-6">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus Massal Berkas Backup
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="mb-2">Anda akan menghapus secara permanen <strong id="modalSelectedCountText" class="text-danger">0 berkas</strong> backup dari router <strong><%= router.name %></strong>.</p>
+                <div class="alert alert-danger small mb-0">
+                    <i class="bi bi-info-circle-fill me-1"></i> Berkas fisik di storage server dan data riwayat di database akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <form id="bulkDeleteForm" action="/backups/bulk-delete" method="POST" class="m-0">
+                    <input type="hidden" name="router_id" value="<%= router.id %>">
+                    <div id="bulkDeleteHiddenInputs"></div>
+                    <button type="submit" class="btn btn-sm btn-danger shadow-sm">
+                        <i class="bi bi-trash-fill me-1"></i> Ya, Hapus Berkas Terpilih
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Delete Router Confirmation Modal -->
@@ -986,4 +1049,134 @@
         const badge = document.getElementById('breakdownPillsBadge');
         if (badge) badge.textContent = '<%= (reportData && reportData.monthlyBreakdown) ? reportData.monthlyBreakdown.length : 0 %> Bulan';
     });
+
+    // ==========================================
+    // Bulk Delete Backups Logic (Muncul saat mode hapus aktif)
+    // ==========================================
+    let isDeleteMode = false;
+
+    function toggleDeleteMode(forceState) {
+        if (typeof forceState === 'boolean') {
+            isDeleteMode = forceState;
+        } else {
+            isDeleteMode = !isDeleteMode;
+        }
+
+        const cols = document.querySelectorAll('.bulk-checkbox-col');
+        const toolbar = document.getElementById('bulkDeleteToolbar');
+        const toggleBtn = document.getElementById('btnToggleDeleteMode');
+        const toggleText = document.getElementById('toggleDeleteText');
+        const masterCheckbox = document.getElementById('masterCheckbox');
+
+        if (isDeleteMode) {
+            cols.forEach(el => el.classList.remove('d-none'));
+            if (toolbar) {
+                toolbar.classList.remove('d-none');
+                toolbar.classList.add('d-flex');
+            }
+            if (toggleBtn) {
+                toggleBtn.classList.remove('btn-outline-danger');
+                toggleBtn.classList.add('btn-danger', 'text-white');
+            }
+            if (toggleText) toggleText.textContent = 'Batal Pilih';
+        } else {
+            cols.forEach(el => el.classList.add('d-none'));
+            if (toolbar) {
+                toolbar.classList.add('d-none');
+                toolbar.classList.remove('d-flex');
+            }
+            if (toggleBtn) {
+                toggleBtn.classList.add('btn-outline-danger');
+                toggleBtn.classList.remove('btn-danger', 'text-white');
+            }
+            if (toggleText) toggleText.textContent = 'Hapus Masal';
+
+            if (masterCheckbox) {
+                masterCheckbox.checked = false;
+                masterCheckbox.indeterminate = false;
+            }
+            document.querySelectorAll('.backup-checkbox').forEach(cb => {
+                cb.checked = false;
+                cb.closest('tr')?.classList.remove('table-danger');
+            });
+            updateSelectionCount();
+        }
+    }
+
+    function toggleSelectAllRows(checked) {
+        const checkboxes = document.querySelectorAll('.backup-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = checked;
+            if (checked) {
+                cb.closest('tr')?.classList.add('table-danger');
+            } else {
+                cb.closest('tr')?.classList.remove('table-danger');
+            }
+        });
+        updateSelectionCount();
+    }
+
+    function selectAllBackups(select) {
+        const masterCheckbox = document.getElementById('masterCheckbox');
+        if (masterCheckbox) {
+            masterCheckbox.checked = select;
+            masterCheckbox.indeterminate = false;
+        }
+        toggleSelectAllRows(select);
+    }
+
+    function updateSelectionCount() {
+        const checkboxes = document.querySelectorAll('.backup-checkbox:checked');
+        const count = checkboxes.length;
+        const allCheckboxes = document.querySelectorAll('.backup-checkbox');
+        const masterCheckbox = document.getElementById('masterCheckbox');
+
+        if (masterCheckbox) {
+            masterCheckbox.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+            masterCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+
+        // Highlight selected rows
+        document.querySelectorAll('.backup-checkbox').forEach(cb => {
+            if (cb.checked) {
+                cb.closest('tr')?.classList.add('table-danger');
+            } else {
+                cb.closest('tr')?.classList.remove('table-danger');
+            }
+        });
+
+        const badge = document.getElementById('selectedCountBadge');
+        const btnBadge = document.getElementById('deleteBtnCount');
+        const btnSubmit = document.getElementById('btnSubmitBulkDelete');
+
+        if (badge) badge.textContent = count;
+        if (btnBadge) btnBadge.textContent = count;
+        if (btnSubmit) btnSubmit.disabled = (count === 0);
+    }
+
+    function confirmBulkDelete() {
+        const checked = document.querySelectorAll('.backup-checkbox:checked');
+        if (checked.length === 0) return;
+
+        const countText = document.getElementById('modalSelectedCountText');
+        if (countText) countText.textContent = `${checked.length} berkas`;
+
+        const container = document.getElementById('bulkDeleteHiddenInputs');
+        if (container) {
+            container.innerHTML = '';
+            checked.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'backup_ids[]';
+                input.value = cb.value;
+                container.appendChild(input);
+            });
+        }
+
+        const modalEl = document.getElementById('bulkDeleteBackupsModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    }
 </script>

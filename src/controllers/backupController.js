@@ -199,5 +199,89 @@ module.exports = {
             req.flash('error', 'Gagal menghapus berkas: ' + err.message);
             return res.redirect('/routers');
         }
+    },
+
+    async bulkDelete(req, res) {
+        try {
+            const user = req.session.user;
+            let ids = req.body.backup_ids || req.body['backup_ids[]'] || req.body.ids;
+            const routerId = req.body.router_id || req.query.router_id;
+
+            if (!ids) {
+                req.flash('error', 'Tidak ada berkas backup yang dipilih untuk dihapus.');
+                return res.redirect(routerId ? `/routers/${routerId}?tab=backups` : '/routers');
+            }
+
+            if (!Array.isArray(ids)) {
+                ids = typeof ids === 'string' ? ids.split(',').map(s => s.trim()) : [ids];
+            }
+            ids = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
+
+            if (ids.length === 0) {
+                req.flash('error', 'Pilihan berkas backup tidak valid.');
+                return res.redirect(routerId ? `/routers/${routerId}?tab=backups` : '/routers');
+            }
+
+            // Query backups joining routers to enforce ownership security
+            let query = db('backups')
+                .join('routers', 'backups.router_id', 'routers.id')
+                .whereIn('backups.id', ids)
+                .select('backups.*', 'routers.user_id as router_owner_id', 'routers.name as router_name');
+
+            if (user.role !== 'admin') {
+                query = query.where('routers.user_id', user.id);
+            }
+
+            const targetBackups = await query;
+            if (targetBackups.length === 0) {
+                req.flash('error', 'Tidak ada berkas backup yang diizinkan untuk dihapus.');
+                return res.redirect(routerId ? `/routers/${routerId}?tab=backups` : '/routers');
+            }
+
+            const validIds = targetBackups.map(b => b.id);
+            const redirectRouterId = routerId || targetBackups[0].router_id;
+
+            // Delete physical files on disk
+            let deletedFilesCount = 0;
+            for (const b of targetBackups) {
+                const fullPath = resolvePhysicalPath(b.file_path);
+                if (fullPath && fs.existsSync(fullPath)) {
+                    try {
+                        fs.unlinkSync(fullPath);
+                        deletedFilesCount++;
+                    } catch (e) {
+                        console.warn(`[BulkDelete] Failed to unlink file ${fullPath}:`, e.message);
+                    }
+                }
+            }
+
+            // Delete records from database
+            await db('backups').whereIn('id', validIds).delete();
+
+            // Log activity
+            try {
+                const activityLogService = require('../services/activityLogService');
+                await activityLogService.log({
+                    userId: user.id,
+                    routerId: redirectRouterId,
+                    type: 'backup',
+                    action: 'Hapus Massal Berkas Backup',
+                    description: `Pengguna '${user.name}' menghapus ${validIds.length} berkas backup secara massal pada router '${targetBackups[0]?.router_name || redirectRouterId}'`,
+                    ipAddress: req.ip,
+                    status: 'warning',
+                    metadata: { deleted_ids: validIds, count: validIds.length }
+                });
+            } catch (logErr) {
+                console.warn('[BulkDelete ActivityLog Error]:', logErr.message);
+            }
+
+            req.flash('success', `Berhasil menghapus ${validIds.length} berkas backup terpilih secara permanen.`);
+            return res.redirect(`/routers/${redirectRouterId}?tab=backups`);
+        } catch (err) {
+            console.error('[BackupController bulkDelete] Error:', err);
+            req.flash('error', 'Gagal memproses penghapusan massal berkas backup: ' + err.message);
+            const routerId = req.body?.router_id || req.query?.router_id;
+            return res.redirect(routerId ? `/routers/${routerId}?tab=backups` : '/routers');
+        }
     }
 };

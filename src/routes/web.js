@@ -68,6 +68,8 @@ router.get('/reports', reportController.index);
 router.post('/reports/:routerId/sync', reportController.sync);
 
 // Secure Backup Download, Preview & Management
+router.post('/backup/bulk-delete', backupController.bulkDelete);
+router.post('/backups/bulk-delete', backupController.bulkDelete);
 router.get('/backup/download/:backup_id', backupController.download);
 router.get('/backups/:backup_id/download', backupController.download);
 router.get('/backup/preview/:backup_id', backupController.preview);
