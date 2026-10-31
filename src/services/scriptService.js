@@ -16,7 +16,8 @@ class ScriptService {
         const appUrl = (options.appUrl || cachedAppUrl || process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
         const apiUrl = `${appUrl}/api/upload`;
         const interval = options.interval || '1d';
-        const startTime = options.startTime || cachedStartTime || '02:00:00';
+        const defaults = typeof settingService.getDefaults === 'function' ? settingService.getDefaults() : {};
+        const startTime = options.startTime || cachedStartTime || defaults.backup_recommendation_time || '02:00:00';
         const routerName = router.name || 'MikroTik';
         const apiToken = router.api_token || '';
         const nowFormatted = dayjs().format('YYYY-MM-DD HH:mm:ss');

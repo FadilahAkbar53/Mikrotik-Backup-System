@@ -294,15 +294,25 @@ module.exports = {
                 .limit(limit)
                 .offset(offset);
 
-            // Active templates for tab=script (default to all-in-one scheduler)
-            const templates = await scriptService.getActiveTemplates();
-            const allInOneTpl = templates.find(t => t.slug === 'one_click_setup');
-            const defaultTplId = allInOneTpl ? allInOneTpl.id : (templates[0] ? templates[0].id : null);
+            // Active templates for tab=script (reads admin defaults for template and start_time)
+            const [templates, defaultStartTime, defaultTemplateSlug] = await Promise.all([
+                scriptService.getActiveTemplates(),
+                settingService.get('backup_recommendation_time', '02:00:00'),
+                settingService.get('default_script_template', 'one_click_setup')
+            ]);
+
+            const defaultTpl = templates.find(t => t.slug === defaultTemplateSlug)
+                || templates.find(t => t.slug === 'one_click_setup')
+                || templates[0]
+                || null;
+            const defaultTplId = defaultTpl ? defaultTpl.id : null;
             const selectedTemplateId = parseInt(req.query.template_id, 10) || defaultTplId;
-            const activeTemplate = templates.find(t => t.id === selectedTemplateId) || allInOneTpl || templates[0] || null;
+            const activeTemplate = templates.find(t => t.id === selectedTemplateId) || defaultTpl || null;
 
             const interval = req.query.interval || '1d';
-            const startTime = req.query.start_time || '02:00:00';
+            const startTime = (req.query.start_time !== undefined && req.query.start_time !== null && String(req.query.start_time).trim() !== '')
+                ? String(req.query.start_time).trim()
+                : (defaultStartTime || '02:00:00');
 
             const generatedScript = activeTemplate
                 ? scriptService.generateScript(router, activeTemplate.content || activeTemplate.script_content, { interval, startTime, appUrl: res.locals.appUrl })
