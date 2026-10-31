@@ -46,6 +46,26 @@ function slugify(text) {
         .replace(/-+$/, '');
 }
 
+function resolvePhysicalPath(filePath) {
+    if (!filePath) return null;
+    if (path.isAbsolute(filePath)) return fs.existsSync(filePath) ? filePath : null;
+
+    const cwd = process.cwd();
+    const candidates = [
+        path.join(cwd, filePath),
+        path.join(cwd, 'storage', filePath),
+        path.join(cwd, 'express-app', 'storage', filePath),
+        path.join(cwd, 'storage', 'app', filePath),
+        (filePath.startsWith('storage/') || filePath.startsWith('storage\\')) ? path.join(cwd, filePath.replace(/^storage[\/\\]/, '')) : null,
+        (filePath.startsWith('storage/') || filePath.startsWith('storage\\')) ? path.join(cwd, 'express-app', filePath) : null
+    ].filter(Boolean);
+
+    for (const cand of candidates) {
+        if (fs.existsSync(cand)) return cand;
+    }
+    return null;
+}
+
 class VoucherReportService {
     /**
      * Parse raw MikroTik Mikhmon date string (e.g. "mar/01/2026") into ISO SQL date and month
@@ -182,6 +202,20 @@ class VoucherReportService {
      */
     async syncFromRscFile(routerId, filePath) {
         console.log(`[VoucherReport] Starting sync for router ID ${routerId} from file: ${filePath}`);
+
+        // Cross-router check: Ensure the file doesn't match another router
+        const router = await db('routers').where('id', routerId).first();
+        if (router) {
+            const fileName = path.basename(filePath).toLowerCase();
+            const otherRouters = await db('routers').whereNot('id', routerId).select('id', 'name');
+            const otherSlugs = otherRouters.map(r => ({ name: r.name, slug: slugify(r.name || '') })).filter(r => r.slug.length >= 3);
+            const matchedOther = otherSlugs.find(o => fileName.includes(o.slug));
+            if (matchedOther) {
+                console.warn(`[VoucherReport] Blocked auto-sync: File '${path.basename(filePath)}' matches another router '${matchedOther.name}'. Skipping parsing for router '${router.name}'.`);
+                return { totalParsed: 0, newInserted: 0, totalExisting: 0, skipped: true };
+            }
+        }
+
         const records = await this.parseRscFile(filePath, routerId);
         console.log(`[VoucherReport] Parsed ${records.length} voucher records from file.`);
 
@@ -220,8 +254,10 @@ class VoucherReportService {
      * - Gracefully handles files that may have been pruned or missing on current machine.
      * - Merges any days that were skipped or missing in newer files from older backups.
      * - Guarantees 0% duplicates through DB composite unique key (router_id, voucher_code, sale_date, sale_time).
+     * - Supports fresh rebuild: options.fresh = true to clear stale/foreign data before re-parsing.
      */
-    async syncAllRscFiles(routerId) {
+    async syncAllRscFiles(routerId, options = {}) {
+        const fresh = options.fresh === true || options.clean === true;
         const router = await db('routers').where('id', routerId).first();
         if (!router) {
             throw new Error('Router tidak ditemukan.');
@@ -236,42 +272,78 @@ class VoucherReportService {
         const existingFilePaths = new Set();
 
         for (const b of dbBackups) {
-            const absPath = path.isAbsolute(b.file_path)
-                ? b.file_path
-                : path.join(process.cwd(), b.file_path);
-            if (fs.existsSync(absPath)) {
-                existingFilePaths.add(absPath);
+            const resolved = resolvePhysicalPath(b.file_path);
+            if (resolved) {
+                existingFilePaths.add(resolved);
             }
         }
 
-        // 2. Also check physical storage folder STRICTLY belonging to this router (storage/backups/user_{id}/{router_slug})
+        // 2. Also check physical storage folders belonging to this router
         const routerSlug = slugify(router.name || '');
-        const specificRouterDir = path.join(process.cwd(), 'storage', 'backups', `user_${router.user_id}`, routerSlug);
-        
-        if (fs.existsSync(specificRouterDir)) {
-            const scanDir = (dir) => {
-                try {
-                    const entries = fs.readdirSync(dir, { withFileTypes: true });
-                    for (const entry of entries) {
-                        const full = path.join(dir, entry.name);
-                        if (entry.isDirectory()) {
-                            scanDir(full);
-                        } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.rsc')) {
-                            existingFilePaths.add(full);
+        const searchDirs = [
+            path.join(process.cwd(), 'storage', 'backups', `user_${router.user_id}`, routerSlug),
+            path.join(process.cwd(), 'express-app', 'storage', 'backups', `user_${router.user_id}`, routerSlug)
+        ];
+
+        for (const specificRouterDir of searchDirs) {
+            if (fs.existsSync(specificRouterDir)) {
+                const scanDir = (dir) => {
+                    try {
+                        const entries = fs.readdirSync(dir, { withFileTypes: true });
+                        for (const entry of entries) {
+                            const full = path.join(dir, entry.name);
+                            if (entry.isDirectory()) {
+                                scanDir(full);
+                            } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.rsc')) {
+                                existingFilePaths.add(full);
+                            }
                         }
+                    } catch (e) {
+                        console.warn(`[VoucherReport] Error scanning dir ${dir}:`, e.message);
                     }
-                } catch (e) {
-                    console.warn(`[VoucherReport] Error scanning dir ${dir}:`, e.message);
-                }
-            };
-            scanDir(specificRouterDir);
+                };
+                scanDir(specificRouterDir);
+            }
         }
 
-        if (existingFilePaths.size === 0) {
-            throw new Error(`Tidak ditemukan berkas backup .rsc fisik di storage untuk router '${router.name}'. Pastikan berkas backup router ini telah diunggah ke server.`);
+        // 3. Filter out files that match a DIFFERENT registered router in the database (cross-token contamination)
+        const otherRouters = await db('routers').whereNot('id', routerId).select('id', 'name');
+        const otherSlugs = otherRouters.map(r => ({
+            name: r.name,
+            slug: slugify(r.name || '')
+        })).filter(r => r.slug.length >= 3);
+
+        const validFilePaths = [];
+        for (const filePath of existingFilePaths) {
+            const fileName = path.basename(filePath).toLowerCase();
+            const matchedOther = otherSlugs.find(o => fileName.includes(o.slug));
+            if (matchedOther) {
+                console.warn(`[VoucherReport] Skipping foreign file '${path.basename(filePath)}' belonging to other router '${matchedOther.name}' during sync of router '${router.name}'.`);
+                continue;
+            }
+            validFilePaths.push(filePath);
         }
 
-        console.log(`[VoucherReport] Starting multi-file sync for router ${routerId} (${router.name}) across ${existingFilePaths.size} RSC files...`);
+        // If fresh sync requested, wipe existing voucher report records for this router now
+        if (fresh) {
+            await db('voucher_reports').where('router_id', routerId).delete();
+            console.log(`[VoucherReport] Cleared all existing voucher report records for router ${routerId} (${router.name}) for fresh rebuild.`);
+        }
+
+        if (validFilePaths.length === 0) {
+            if (fresh) {
+                return {
+                    filesProcessed: 0,
+                    totalParsed: 0,
+                    newInserted: 0,
+                    totalExisting: 0,
+                    fresh: true
+                };
+            }
+            throw new Error(`Tidak ditemukan berkas backup .rsc fisik yang valid di storage untuk router '${router.name}'. Pastikan router ini telah berhasil mengunggah berkas backup .rsc.`);
+        }
+
+        console.log(`[VoucherReport] Starting multi-file sync for router ${routerId} (${router.name}) across ${validFilePaths.length} valid RSC files (fresh=${fresh})...`);
 
         const countBeforeRow = await db('voucher_reports').where('router_id', routerId).count('id as count').first();
         const countBefore = parseInt(countBeforeRow.count, 10) || 0;
@@ -279,7 +351,7 @@ class VoucherReportService {
         let totalParsedAll = 0;
         const chunkSize = 500;
 
-        for (const filePath of existingFilePaths) {
+        for (const filePath of validFilePaths) {
             try {
                 const records = await this.parseRscFile(filePath, routerId);
                 totalParsedAll += records.length;
@@ -300,13 +372,14 @@ class VoucherReportService {
         const countAfter = parseInt(countAfterRow.count, 10) || 0;
         const newInserted = countAfter - countBefore;
 
-        console.log(`[VoucherReport] Multi-file sync finished for router ${routerId}. Files: ${existingFilePaths.size}, Parsed: ${totalParsedAll}, New Inserted: ${newInserted}, Total in DB: ${countAfter}`);
+        console.log(`[VoucherReport] Multi-file sync finished for router ${routerId}. Files: ${validFilePaths.length}, Parsed: ${totalParsedAll}, New Inserted: ${newInserted}, Total in DB: ${countAfter}`);
 
         return {
-            filesProcessed: existingFilePaths.size,
+            filesProcessed: validFilePaths.length,
             totalParsed: totalParsedAll,
             newInserted,
-            totalExisting: countAfter
+            totalExisting: countAfter,
+            fresh
         };
     }
 

@@ -7,6 +7,15 @@ const db = require('../config/database');
 const backupQueueService = require('./backupQueueService');
 const activityLogService = require('./activityLogService');
 
+function slugify(text) {
+    return text.toString().toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/\-\-+/g, '-')
+        .replace(/^-+/, '')
+        .replace(/-+$/, '');
+}
+
 class RouterFtpFileSystem extends FtpSrv.FileSystem {
     constructor(connection, { root, cwd, router }) {
         super(connection, { root, cwd });
@@ -40,6 +49,36 @@ class RouterFtpFileSystem extends FtpSrv.FileSystem {
                     return;
                 }
                 const type = ext;
+
+                // Cross-Router Token Check: Verify if uploaded file belongs to a different registered router
+                const otherRouters = await db('routers')
+                    .whereNot('id', this.router.id)
+                    .select('id', 'name');
+
+                const cleanBaseName = slugify(baseName);
+                const matchedOther = otherRouters.find(r => {
+                    const otherSlug = slugify(r.name || '');
+                    return otherSlug.length >= 3 && cleanBaseName.includes(otherSlug);
+                });
+
+                if (matchedOther) {
+                    console.warn(`[FTP Server] Cross-router upload rejected! File '${baseName}' matches router '${matchedOther.name}' (ID: ${matchedOther.id}), but was sent with token of '${this.router.name}' (ID: ${this.router.id})`);
+                    try { if (fs.existsSync(fsPath)) fs.unlinkSync(fsPath); } catch (e) {}
+                    activityLogService.log({
+                        userId: this.router.user_id,
+                        routerId: this.router.id,
+                        type: 'ftp_error',
+                        action: 'Upload Ditolak: Token Tertukar (Mismatch Router)',
+                        description: `Berkas '${baseName}' ditolak karena berkas ini diidentifikasi milik router '${matchedOther.name}', namun diunggah menggunakan token router '${this.router.name}'. Mohon periksa script backup di MikroTik '${matchedOther.name}'.`,
+                        status: 'error',
+                        metadata: {
+                            fileName: baseName,
+                            tokenOwnerRouter: this.router.name,
+                            fileOwnerRouter: matchedOther.name
+                        }
+                    });
+                    return;
+                }
 
                 console.log(`[FTP Server] Upload completed for router '${this.router.name}': ${baseName} (${stats.size} bytes)`);
 

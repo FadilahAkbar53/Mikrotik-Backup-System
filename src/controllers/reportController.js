@@ -117,12 +117,14 @@ const reportController = {
     },
 
     /**
-     * Trigger manual sync of voucher report from latest .rsc backup
+     * Trigger manual sync of voucher report from .rsc backups
+     * Supports ?fresh=1 to wipe corrupted/stale data and rebuild cleanly
      */
     async sync(req, res) {
         try {
             const user = req.session.user;
             const routerId = parseInt(req.params.routerId, 10);
+            const isFresh = req.query.fresh === '1' || req.body.fresh === '1' || req.query.fresh === 'true';
 
             const router = await db('routers').where('id', routerId).first();
             if (!router) {
@@ -135,9 +137,11 @@ const reportController = {
                 return res.redirect('/reports');
             }
 
-            const result = await voucherReportService.syncAllRscFiles(routerId);
+            const result = await voucherReportService.syncAllRscFiles(routerId, { fresh: isFresh });
             
-            if (result.newInserted > 0) {
+            if (isFresh) {
+                req.flash('success', `Reset & Sinkronisasi Bersih Selesai! Data lama telah dibersihkan. Memindai ${result.filesProcessed} berkas .rsc resmi router '${router.name}', menghasilkan total ${result.totalExisting.toLocaleString('id-ID')} voucher valid.`);
+            } else if (result.newInserted > 0) {
                 req.flash('success', `Sinkronisasi berhasil! Memindai ${result.filesProcessed} berkas .rsc, ${result.newInserted} voucher baru berhasil diintegrasikan (total ${result.totalExisting.toLocaleString('id-ID')} voucher tersimpan tanpa duplikasi).`);
             } else {
                 req.flash('info', `Sinkronisasi selesai! Memindai ${result.filesProcessed} berkas .rsc. Seluruh riwayat penjualan (${result.totalExisting.toLocaleString('id-ID')} voucher) sudah lengkap dan tersinkronisasi tanpa duplikasi.`);

@@ -31,13 +31,39 @@
                     </div>
                 <% } %>
 
-                <!-- Manual Sync Button -->
-                <form action="/reports/<%= selectedRouterId %>/sync" method="POST" class="m-0" id="syncReportForm">
-                    <button type="submit" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm" id="btnSyncReport" title="Pindai seluruh berkas .rsc untuk melengkapi tanggal yang terlewat tanpa duplikasi">
-                        <i class="bi bi-arrow-repeat" id="syncIcon"></i>
-                        <span>Sinkronkan Riwayat .RSC</span>
-                    </button>
-                </form>
+                <!-- Sync Buttons Group -->
+                <div class="btn-group shadow-sm">
+                    <form action="/reports/<%= selectedRouterId %>/sync" method="POST" class="m-0" id="syncReportForm">
+                        <button type="submit" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-end-0 border-end-0" id="btnSyncReport" title="Pindai seluruh berkas .rsc untuk melengkapi tanggal yang terlewat tanpa duplikasi">
+                            <i class="bi bi-arrow-repeat" id="syncIcon"></i>
+                            <span>Sinkronkan .RSC</span>
+                        </button>
+                    </form>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split rounded-start-0" data-bs-toggle="dropdown" aria-expanded="false" title="Pilihan Sinkronisasi">
+                            <span class="visually-hidden">Pilihan Sinkronisasi</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                            <li>
+                                <form action="/reports/<%= selectedRouterId %>/sync" method="POST" class="m-0">
+                                    <button type="submit" class="dropdown-item small d-flex align-items-center gap-2">
+                                        <i class="bi bi-arrow-repeat text-primary"></i>
+                                        <span>Sinkronisasi Tambahan (Incremental)</span>
+                                    </button>
+                                </form>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <form action="/reports/<%= selectedRouterId %>/sync?fresh=1" method="POST" class="m-0" onsubmit="return confirm('Apakah Anda yakin ingin Mereset & Sinkron Ulang data voucher router ini?\n\nSemua data laporan voucher lama untuk router ini akan dibersihkan, lalu dibangun ulang murni dari berkas .rsc resmi router ini.');">
+                                    <button type="submit" class="dropdown-item small text-danger d-flex align-items-center gap-2">
+                                        <i class="bi bi-trash3 text-danger"></i>
+                                        <span>Reset & Sinkron Bersih (Fresh Rebuild)</span>
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
 
                 <a href="/routers/<%= selectedRouterId %>" class="btn btn-sm btn-light border text-secondary shadow-sm">
                     <i class="bi bi-box-arrow-up-right me-1"></i> Detail Router
